@@ -41,7 +41,10 @@ $CB resume --root path/to/project                 # verified pack, wrapped as un
 ### Integration (setup)
 
 `/context-bridge setup` (or `cb.py setup`) adds a short, marked Context Bridge block to a CLAUDE.md
-file and, optionally, a SessionStart hook that prints a one-line notice when a project has a pack.
+file and, optionally, an auto-resume SessionStart hook: at startup and resume it verifies the
+latest pack and loads a short digest (default limit 400 tokens); with no pack, or a pack that fails
+verification, it loads nothing. It never writes and never creates packs. Settings in the user config:
+`[hook] sources = ["startup", "resume"]` and `max_tokens = 400`.
 
 ```sh
 $CB setup status --root .                                   # which CLAUDE.md files exist, what is protected

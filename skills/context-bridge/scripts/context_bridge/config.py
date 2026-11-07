@@ -20,6 +20,10 @@ Example user config::
 
     [setup]
     protected_roots = ["~/notes"]   # setup never writes CLAUDE.md or settings below these
+
+    [hook]
+    sources = ["startup", "resume"]  # session starts the optional auto-resume hook answers
+    max_tokens = 400                 # size limit of the digest it loads
 """
 
 from __future__ import annotations
@@ -39,11 +43,17 @@ PROJECT_CONFIG_REL = ".context-bridge/config.toml"
 MAX_CONFIG_BYTES = 64 * 1024
 DEFAULT_MAX_FILE_BYTES = 256 * 1024
 DEFAULT_MAX_TOTAL_BYTES = 2 * 1024 * 1024
-_LIMIT_BOUNDS = {"max_file_bytes": (1, 16 * 1024 * 1024), "max_total_bytes": (1, 64 * 1024 * 1024)}
+_LIMIT_BOUNDS = {
+    "max_file_bytes": (1, 16 * 1024 * 1024),
+    "max_total_bytes": (1, 64 * 1024 * 1024),
+    "max_tokens": (100, 2000),
+}
+HOOK_SOURCES = ("startup", "resume", "clear", "compact")
 
 _USER_KEYS = {
     "privacy": {"deny_roots", "allowed_external_roots", "redact_pii"},
     "setup": {"protected_roots"},
+    "hook": {"sources", "max_tokens"},
     "scan": {"include", "exclude", "max_file_bytes", "max_total_bytes"},
 }
 _PROJECT_KEYS = {
@@ -51,7 +61,13 @@ _PROJECT_KEYS = {
     "scan": {"include", "exclude", "max_file_bytes", "max_total_bytes"},
     "sources": {"external"},
 }
-_USER_ONLY = {("privacy", "deny_roots"), ("privacy", "allowed_external_roots"), ("setup", "protected_roots")}
+_USER_ONLY = {
+    ("privacy", "deny_roots"),
+    ("privacy", "allowed_external_roots"),
+    ("setup", "protected_roots"),
+    ("hook", "sources"),
+    ("hook", "max_tokens"),
+}
 
 
 @dataclass(frozen=True)
@@ -60,6 +76,8 @@ class Config:
     allowed_external_roots: tuple[Path, ...] = ()
     external_sources: tuple[Path, ...] = ()
     protected_roots: tuple[Path, ...] = ()  # setup never writes below these
+    hook_sources: tuple[str, ...] = ("startup", "resume")  # session starts the auto-resume hook answers
+    hook_max_tokens: int = 400
     include: tuple[tuple[str, str], ...] = DEFAULT_INCLUDE
     exclude: tuple[str, ...] = ()
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
@@ -137,6 +155,14 @@ def _bool(value: Any, name: str, origin: str) -> bool | None:
     return value
 
 
+def _hook_sources(value: Any, origin: str) -> tuple[str, ...]:
+    sources = _str_list(value, "hook.sources", origin)
+    unknown = [s for s in sources if s not in HOOK_SOURCES]
+    if unknown:
+        raise ConfigError(f"{origin}: 'hook.sources' may only contain {', '.join(HOOK_SOURCES)}")
+    return tuple(sources)
+
+
 def _includes(value: Any, origin: str) -> list[tuple[str, str]]:
     return [(pattern, "custom") for pattern in _str_list(value, "scan.include", origin)]
 
@@ -201,6 +227,9 @@ def load_config(root: Path, user_path: Path | None = None, include_project: bool
             protected_roots=tuple(
                 _paths(_get(data, "setup", "protected_roots", _USER_KEYS), "setup.protected_roots", origin)
             ),
+            hook_sources=_hook_sources(_get(data, "hook", "sources", _USER_KEYS), origin) or cfg.hook_sources,
+            hook_max_tokens=_limit(_get(data, "hook", "max_tokens", _USER_KEYS), "max_tokens", origin)
+            or cfg.hook_max_tokens,
             user_config_path=user_path,
         )
 
