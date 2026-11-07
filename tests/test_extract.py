@@ -134,5 +134,20 @@ class ProjectExtractorTests(unittest.TestCase):
         )
 
 
+class GermanHeadingTests(unittest.TestCase):
+    def test_singular_and_plural_forms(self) -> None:
+        cases = {
+            "Entscheidung": "decisions", "Entscheidungen": "decisions", "Begründung": "decisions",
+            "Einschränkung": "constraints", "Einschränkungen": "constraints", "Anforderung": "constraints",
+            "Prinzip": "constraints", "Grundsatz": "constraints", "Grundsätze": "constraints",
+            "Konvention": "conventions", "Abhängigkeit": "stack", "Risiko": "open_questions",
+            "Frage": "open_questions", "Unsicherheit": "open_questions", "Annahme": "open_questions",
+            "Aufgabe": "open_tasks", "Meilenstein": "open_tasks", "Pendenz": "open_tasks",
+        }  # fmt: skip
+        for heading, section in cases.items():
+            with self.subTest(heading=heading):
+                self.assertEqual(markdown.classify_heading(heading)[0], section)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -30,11 +30,16 @@ class DedupTests(unittest.TestCase):
         self.assertEqual(removed, 1)
         self.assertEqual([i.source for i in kept], ["S1", "S3"])
 
-    def test_session_items_win_over_file_items(self) -> None:
+    def test_file_backed_copy_wins_over_the_session_copy(self) -> None:
         file_item = item("next_steps", "Write the verify command", "S1", origin_rank=2)
         session = item("next_steps", "Write the verify command.", "S9", origin_rank=0)
-        kept, _ = deduplicate([file_item, session])
-        self.assertEqual(kept[0].source, "S9")
+        kept, removed = deduplicate([file_item, session])
+        self.assertEqual(removed, 1)
+        self.assertEqual([(i.source, i.also_in) for i in kept], [("S1", ["S9"])])  # verifiable copy, session noted
+
+    def test_session_only_statements_stay_with_the_session(self) -> None:
+        kept, _ = deduplicate([item("goals", "Ship v2", "S9", origin_rank=0), item("goals", "Ship v3", "S1")])
+        self.assertEqual(sorted(i.source for i in kept), ["S1", "S9"])
 
     def test_normalise(self) -> None:
         self.assertEqual(normalise("  **Use** `TOML`, please. "), "use toml , please")

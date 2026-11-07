@@ -181,6 +181,12 @@ def build(
         origin = ORIGIN_EXTERNAL if f.origin == "external" else ORIGIN_FILE
         src = new_source(origin=origin, label=f.path, kind=f.kind, sha256=f.sha256, size=f.size)
         new_items, name = extract_source(f.path, f.kind, report.texts.get(f.path, ""), src.id)
+        # scan already removed invisible characters, so pass its per-line findings on to the items:
+        # a line that carried hidden or instruction-like content keeps its warning flag.
+        suspicious = {finding["line"] for finding in f.injection if finding["severity"] in ("high", "medium")}
+        for extracted in new_items:
+            if extracted.lines and any(extracted.lines[0] <= line <= extracted.lines[1] for line in suspicious):
+                extracted.add_flag(FLAG_INJECTION)
         if name and f.kind == "manifest":
             names.setdefault("manifest", name)
         elif name and f.kind == "readme" and "/" not in f.path:

@@ -35,6 +35,8 @@ def escape(text: str) -> str:
 def _ref(item: dict[str, Any], sources: dict[str, dict[str, Any]]) -> str:
     source = sources.get(item["source"], {})
     ref = f"{item['source']} {escape(source.get('label', '?'))}"
+    if source.get("origin") == "session":
+        ref += " (unverified)"
     lines = item.get("lines")
     if lines:
         ref += f":{lines[0]}" if lines[0] == lines[1] else f":{lines[0]}-{lines[1]}"
@@ -75,7 +77,8 @@ def render_markdown(pack: dict[str, Any]) -> str:
         status.append(f"{vcs.get('uncommitted_changes', 0)} uncommitted changes")
     status.append(f"~{budget['estimated_tokens']} of {budget['max_tokens']} tokens")
     out += [" · ".join(status), "", "Status labels: [fact] stated in a source · [assumption] marked as an "
-            "assumption · [uncertain] hedged, open or unlabeled.", ""]  # fmt: skip
+            "assumption · [uncertain] hedged, open or unlabeled · (unverified) from the session handoff, not backed "
+        "by a file.", ""]  # fmt: skip
 
     for section in pack["sections"]:
         out.append(f"## {section['title']}")

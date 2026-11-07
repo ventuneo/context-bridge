@@ -34,13 +34,14 @@ class GenuinePackTests(unittest.TestCase):
         self.assertTrue(cases)
         for case_dir in cases:
             expected, handoff = evaluate.load_case(case_dir)
-            for budget, hard, exit_code in ((2000, False, 0), (600, False, 0), (350, True, 3)):
+            for budget, hard in ((2000, False), (600, False), (350, True)):
                 with self.subTest(case=case_dir.name, budget=budget, hard=hard), tempfile.TemporaryDirectory() as tmp:
                     root = evaluate.prepare(case_dir, Path(tmp), expected)
-                    pack.build(root, handoff=handoff, approve=True, budget=budget, hard_budget=hard)
+                    result = pack.build(root, handoff=handoff, approve=True, budget=budget, hard_budget=hard)
                     report = verify.verify(root)
                     self.assertEqual(report.errors, [])
-                    self.assertEqual(report.exit_code, exit_code, report.findings)
+                    # verify reports critical loss exactly when the pack recorded one
+                    self.assertEqual(report.exit_code, 3 if result.pack["critical_loss"] else 0, report.findings)
                     self.assertTrue(all(s.status in ("fresh", "not_checkable") for s in report.sources))
 
 

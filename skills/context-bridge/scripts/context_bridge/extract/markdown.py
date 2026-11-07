@@ -33,17 +33,17 @@ HEADING_SECTIONS: tuple[tuple[str, re.Pattern[str]], ...] = (
         "constraints",
         _rx(
             r"constraints?|rules?|requirements?|limitations?|limits|restrictions?|guardrails?|policy|policies|"
-            r"security|privacy|principles?|einschränkungen?|regeln?|vorgaben?|anforderungen?|grenzen|sicherheit|"
-            r"datenschutz|freigaben?|prinzipien|grundsätze"
+            r"security|privacy|principles?|einschränkung(?:en)?|regeln?|vorgaben?|anforderung(?:en)?|grenzen|sicherheit|"
+            r"datenschutz|freigaben?|prinzip(?:ien)?|grundsatz|grundsätze"
         ),
     ),
-    ("decisions", _rx(r"decisions?|adrs?|rationale|entscheidungen?|begründung")),
-    ("open_tasks", _rx(r"to-?dos?|tasks?|backlog|roadmap|milestones?|aufgaben|meilensteine|pendenzen")),
+    ("decisions", _rx(r"decisions?|adrs?|rationale|entscheidung(?:en)?|begründung(?:en)?")),
+    ("open_tasks", _rx(r"to-?dos?|tasks?|backlog|roadmap|milestones?|aufgaben?|meilensteine?|pendenz(?:en)?")),
     (
         "open_questions",
         _rx(
-            r"open questions?|questions?|unknowns?|risks?|assumptions?|offene fragen|fragen|risiken|annahmen|"
-            r"unsicheres|offen"
+            r"open questions?|questions?|unknowns?|risks?|assumptions?|offene fragen|fragen?|risiko|risiken|annahmen?|"
+            r"unsicheres|unsicherheit(?:en)?|offen"
         ),
     ),
     ("state", _rx(r"status|state|current state|progress|stand|fortschritt")),
@@ -54,14 +54,15 @@ HEADING_SECTIONS: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"tests?|testing|development|befehle|nutzung|entwicklung"
         ),
     ),
-    ("conventions", _rx(r"conventions?|style|guidelines?|contributing|workflow|konventionen|stil|arbeitsweise")),
+    ("conventions", _rx(r"conventions?|style|guidelines?|contributing|workflow|konvention(?:en)?|stil|arbeitsweise")),
     ("structure", _rx(r"architecture|structure|layout|directory|folders?|architektur|struktur|aufbau|ordner")),
-    ("stack", _rx(r"tech(?:nology)?(?: stack)?|stack|dependencies|technik|abhängigkeiten")),
+    ("stack", _rx(r"tech(?:nology)?(?: stack)?|stack|dependencies|technik|abhängigkeit(?:en)?")),
     ("overview", _rx(r"overview|about|introduction|description|summary|überblick|beschreibung|einleitung")),
 )
 _ASSUMPTION_HEADING = _rx(r"assumptions?|annahmen?")
 _UNCERTAIN_HEADING = _rx(
-    r"open questions?|questions?|unknowns?|risks?|unsicheres|unsicherheiten|offene fragen|fragen|risiken|offen"
+    r"open questions?|questions?|unknowns?|risks?|unsicheres|unsicherheit(?:en)?|offene fragen|fragen?|risiko|risiken|"
+    r"offen"
 )
 _HEDGE = _rx(
     r"maybe|perhaps|might|probably|possibly|unclear|unknown|unsure|tbd|to be decided|not sure|vielleicht|"

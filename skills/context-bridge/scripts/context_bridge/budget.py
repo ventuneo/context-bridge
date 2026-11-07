@@ -48,10 +48,23 @@ def priority_key(item: Item) -> tuple[int, int, int, int]:
     return (TIER_RANK[item.tier], SECTION_INDEX[item.section], item.origin_rank, item.order)
 
 
+def _replace(kept: list[Item], exact: dict[str, Item], by_size: dict[int, list[tuple[frozenset[str], Item]]],
+             old: Item, new: Item) -> None:  # fmt: skip
+    kept[kept.index(old)] = new
+    for key, value in list(exact.items()):
+        if value is old:
+            exact[key] = new
+    for entries in by_size.values():
+        for index, (words, value) in enumerate(entries):
+            if value is old:
+                entries[index] = (words, new)
+
+
 def deduplicate(items: list[Item]) -> tuple[list[Item], int]:
     """Remove exact and near-duplicates, keeping the highest-priority copy.
 
-    The kept copy records the sources of removed copies in ``also_in``.
+    The kept copy records the sources of removed copies in ``also_in``. When a session statement is
+    also found in a file, the file copy is kept because it can be verified.
     """
     kept: list[Item] = []
     exact: dict[str, Item] = {}
@@ -74,7 +87,12 @@ def deduplicate(items: list[Item]) -> tuple[list[Item], int]:
                 if duplicate is not None:
                     break
         if duplicate is not None:
-            if item.source != duplicate.source and item.source not in duplicate.also_in:
+            if duplicate.origin_rank == 0 and item.origin_rank > 0:
+                # A session statement that a file also contains: keep the verifiable file copy as the
+                # main item and record the session as an additional source.
+                item.also_in = [s for s in [duplicate.source, *duplicate.also_in] if s != item.source]
+                _replace(kept, exact, by_size, duplicate, item)
+            elif item.source != duplicate.source and item.source not in duplicate.also_in:
                 duplicate.also_in.append(item.source)
             removed += 1
             continue
