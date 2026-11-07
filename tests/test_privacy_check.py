@@ -10,6 +10,7 @@ from helpers import PRIVACY_CHECK, TempProject, isolated_env
 _spec = importlib.util.spec_from_file_location("privacy_check", PRIVACY_CHECK)
 assert _spec and _spec.loader
 privacy_check = importlib.util.module_from_spec(_spec)
+sys.modules["privacy_check"] = privacy_check  # dataclasses on 3.11 look the module up here
 _spec.loader.exec_module(privacy_check)
 
 # Built at runtime so this file itself never contains a real-looking home path.
