@@ -1,0 +1,9 @@
+{
+  "goal": {"text": "Make the pilot stable enough for ten harbours.", "status": "fact"},
+  "status": {"text": "Offline capture works; sync is half done.", "status": "fact"},
+  "decisions": [
+    {"text": "Keep the sync queue in SQLite", "reason": "one store is simpler to back up", "status": "fact"}
+  ],
+  "next_steps": [{"text": "Write integration tests for the sync queue.", "status": "fact"}],
+  "open_questions": [{"text": "Whether offices accept PDF signatures.", "status": "uncertain"}]
+}

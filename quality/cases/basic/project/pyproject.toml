@@ -1,0 +1,4 @@
+[project]
+name = "harbor-ledger"
+requires-python = ">=3.11"
+dependencies = []

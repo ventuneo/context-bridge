@@ -1,0 +1,38 @@
+{
+  "case": "basic",
+  "description": "Small offline app with goals, rules, ADRs, a German note, a session handoff, a secret, hidden text and structure noise.",
+  "noise": {"source_dirs": 25, "files_per_dir": 4, "env_secret": "SECRET_VALUE=do-not-pack-123"},
+  "items": [
+    {"id": "G1", "category": "goal", "criticality": "critical", "all": ["full inspection", "without network"], "status": "fact"},
+    {"id": "G2", "category": "goal", "criticality": "critical", "all": ["exported as pdf", "harbour office"]},
+    {"id": "G3", "category": "goal", "criticality": "critical", "all": ["zehn häfen"]},
+    {"id": "G4", "category": "goal", "criticality": "critical", "all": ["pilot stable", "ten harbours"]},
+    {"id": "C1", "category": "constraint", "criticality": "critical", "all": ["never send inspection data"]},
+    {"id": "C2", "category": "constraint", "criticality": "critical", "all": ["standard library only"]},
+    {"id": "C3", "category": "constraint", "criticality": "critical", "all": ["timestamps", "utc"]},
+    {"id": "D1", "category": "decision", "criticality": "critical", "all": ["sqlite is the local store"]},
+    {"id": "D2", "category": "decision", "criticality": "critical", "all": ["built-in pdf writer"]},
+    {"id": "D3", "category": "decision", "criticality": "critical", "all": ["sync queue in sqlite", "simpler to back up"]},
+    {"id": "N1", "category": "next_step", "criticality": "critical", "all": ["sync queue", "unreliable networks"]},
+    {"id": "N2", "category": "next_step", "criticality": "critical", "all": ["signature capture"]},
+    {"id": "N3", "category": "next_step", "criticality": "critical", "all": ["schulung"]},
+    {"id": "N4", "category": "next_step", "criticality": "critical", "all": ["integration tests"]},
+    {"id": "Q1", "category": "fact", "criticality": "important", "all": ["excel exports"], "status": "uncertain"},
+    {"id": "Q2", "category": "fact", "criticality": "important", "all": ["digitale signaturen"], "status": "uncertain"},
+    {"id": "Q3", "category": "fact", "criticality": "important", "all": ["accept pdf signatures"], "status": "uncertain"},
+    {"id": "A1", "category": "fact", "criticality": "important", "all": ["tablet"], "status": "assumption"},
+    {"id": "S1", "category": "fact", "criticality": "important", "all": ["pilot with two harbours"]},
+    {"id": "S2", "category": "fact", "criticality": "important", "all": ["half done"]},
+    {"id": "K1", "category": "fact", "criticality": "normal", "all": ["make test"]},
+    {"id": "O1", "category": "fact", "criticality": "normal", "all": ["cargo inspections"]},
+    {"id": "T1", "category": "fact", "criticality": "normal", "all": ["python project", "harbor-ledger"]},
+    {"id": "V1", "category": "fact", "criticality": "normal", "all": ["400 lines"]}
+  ],
+  "forbidden": [
+    {"id": "F1", "any": ["{{FAKE_GITHUB_TOKEN}}"]},
+    {"id": "F2", "any": ["{{FAKE_EMAIL}}"]},
+    {"id": "F3", "any": ["geheimes verstecktes ziel"]},
+    {"id": "F4", "any": ["do-not-pack-123"]},
+    {"id": "F5", "any": ["print('noise"]}
+  ]
+}
