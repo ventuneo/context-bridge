@@ -150,6 +150,7 @@ def check_history(terms: list[str]) -> list[Finding]:
         findings += check_text(f"{an}\n{cn}\n{body}", where, terms)
     listing = git("cat-file", "--batch-all-objects", "--batch-check=%(objecttype) %(objectname)").decode()
     blobs = [line.split()[1] for line in listing.splitlines() if line.startswith("blob ")]
+    reachable = {line.split()[0] for line in git("rev-list", "--all", "--objects").decode().splitlines() if line}
     if blobs:
         data = git("cat-file", "--batch", input_bytes=("\n".join(blobs) + "\n").encode())
         pos = 0
@@ -158,7 +159,8 @@ def check_history(terms: list[str]) -> list[Finding]:
             oid, _type, size = data[pos:header_end].decode().split()
             start = header_end + 1
             content = data[start : start + int(size)]
-            findings += check_text(content.decode(errors="replace"), f"blob {oid[:10]}", terms)
+            label = f"blob {oid[:10]}" if oid in reachable else f"unreachable blob {oid[:10]} (in no commit)"
+            findings += check_text(content.decode(errors="replace"), label, terms)
             pos = start + int(size) + 1
     return findings
 
@@ -188,6 +190,12 @@ def main(argv: list[str] | None = None) -> int:
         print("privacy_check: blocked – personal data found:", file=sys.stderr)
         for finding in findings:
             print(f"  {finding}", file=sys.stderr)
+        if any(f.where.startswith("unreachable blob") for f in findings):
+            print(
+                "  Unreachable objects are left over from blocked commits and are never pushed. Remove them with:\n"
+                "    git reflog expire --expire-unreachable=now --all && git gc --prune=now",
+                file=sys.stderr,
+            )
         return 1
     return 0
 

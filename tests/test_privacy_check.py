@@ -110,6 +110,14 @@ class HookTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("absolute home path", result.stderr)
 
+    def test_history_labels_leftovers_from_blocked_commits(self) -> None:
+        self.stage("probe.md", f"{HOME_PATH}\n")  # git add writes the blob even if the commit is blocked
+        self.project.git("rm", "-q", "--cached", "probe.md")
+        result = self.run_check("--history")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("unreachable blob", result.stderr)
+        self.assertIn("git gc --prune=now", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
