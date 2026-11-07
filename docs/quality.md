@@ -41,7 +41,8 @@ Every number is counted from the ground truth:
   notes are attributed to the session handoff and marked `(unverified)` in Markdown.
 - **Flag accuracy**: `redacted`, `instruction_like`, `unlabeled`.
 - **Forbidden hits** in the JSON and the Markdown.
-- **Efficiency**: pack tokens, tokens read from the sources, compression ratio
+- **Efficiency**: tokens of the rendered Markdown pack (everything a reader gets, including the
+  trust notice, coverage line and sources table), tokens read from the sources, compression ratio
   (pack ÷ sources) and points per 1000 pack tokens.
 - **Loss reporting**: whether `pack` (exit 3) and `verify` (exit 3) report a critical loss.
 

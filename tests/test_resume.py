@@ -80,7 +80,7 @@ class NewSessionTests(ResumeTestCase):
         self.assertIn("1 new commit(s) since the pack", inside)
         self.assertIn("Refine the next step", inside)
         self.assertIn("- Changed: S1 README.md; outdated items: " + outdated, inside)
-        self.assertIn("New source, not in the pack (needs approval): docs/new.md", inside)
+        self.assertIn("New source since this pack (needs approval): docs/new.md", inside)
         footer = output[output.index(CLOSE) :]
         self.assertIn(f"Outdated items: {outdated}", footer)
         self.assertEqual(report.exit_code, 1)

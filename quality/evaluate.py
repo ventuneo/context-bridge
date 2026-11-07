@@ -265,6 +265,8 @@ def evaluate(pack: dict[str, Any], markdown: str, expected: dict[str, Any]) -> d
         "tokens": tokens,
         "points_per_1k_tokens": round(points / tokens * 1000, 1) if tokens else None,
         "loss_reported": bool(pack["critical_loss"]),
+        "coverage": pack["coverage"]["status"],
+        "warnings": [w["code"] for w in pack["warnings"]],
         "items": verdicts,
     }
 
@@ -308,6 +310,12 @@ def check_gates(results: list[dict[str, Any]]) -> list[str]:
             failures.append(f"{run}: verify reports errors on a genuine pack: {', '.join(r['verify_errors'])}")
         if r["mode"] == "soft" and r["critical_missing"]:
             failures.append(f"{run}: CRITICAL LOSS without --hard-budget: {', '.join(r['critical_missing'])}")
+        if r["missing"] and r["coverage"] == "all_extracted_items_kept":
+            failures.append(f"{run}: the pack claims to keep every item although {', '.join(r['missing'])} are missing")
+        if r["critical_missing"] and r["coverage"] != "critical_loss":
+            failures.append(
+                f"{run}: critical items {', '.join(r['critical_missing'])} are missing but coverage is {r['coverage']}"
+            )
         if r["critical_missing"] and not (r["loss_reported"] and r["pack_exit"] == 3 and r["verify_exit"] == 3):
             failures.append(f"{run}: critical loss {', '.join(r['critical_missing'])} was not reported clearly")
     for case, runs in by_case.items():

@@ -5,8 +5,8 @@ sources, compresses it into a small, source-anchored **context pack**, verifies 
 restores it in a new AI session. Packs are plain JSON and Markdown, so they also work
 with other assistants.
 
-> **Status:** early development. `scan`, `pack`, `verify` and `resume` work; the Claude Code skill
-> instructions (`SKILL.md`) are next. Not ready for everyday use yet.
+> **Status:** early development. `scan`, `pack`, `verify`, `resume` and the Claude Code skill
+> (`skills/context-bridge/SKILL.md`) work locally. Not published yet.
 
 ## Principles
 
@@ -72,6 +72,9 @@ python3 -I quality/run.py --check
   structure). Context is dropped first. Critical items are kept even if that exceeds the
   budget; with `--hard-budget` they may be dropped, and that is reported as
   **critical information loss** (banner in the pack, message on stderr, exit code 3).
+- **Coverage:** every pack states whether all extracted items are kept, the pack is `PARTIAL`, or
+  it records `CRITICAL INFORMATION LOSS`; `verify` recomputes it. A pack is never called complete:
+  extraction is selective. The budget covers the whole rendered Markdown.
 - Every item carries its source (file, line range, SHA-256) and a status:
   `fact`, `assumption` or `uncertain`. Duplicates are merged and their sources kept.
 - **Consent:** new sources are never packed until approved (`--approve` or

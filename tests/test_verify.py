@@ -87,6 +87,18 @@ class FreshnessTests(VerifyTestCase):
         report = self.verify()
         self.assertEqual(report.new_sources, ["docs/new.md"])
 
+    def test_approved_sources_without_items_are_not_reported_as_new(self) -> None:
+        # A tight hard budget leaves some approved files without items: they were read, not forgotten.
+        goals = [{"text": f"Goal {n}: requirement {n} must be kept.", "status": "fact"} for n in range(30)]
+        result = self.make_pack(budget=250, hard_budget=True, handoff=json.dumps({"goals": goals}).encode())
+        unreferenced = set(result.pack["considered_sources"]) - {s["label"] for s in result.pack["sources"]}
+        self.assertTrue(unreferenced)
+        report = self.verify()
+        self.assertEqual(report.new_sources, [])
+        self.project.write("docs/new.md", "## Goals\n- Brand new goal.\n")
+        report = self.verify()
+        self.assertEqual((report.new_sources, report.unapproved_sources), (["docs/new.md"], ["docs/new.md"]))
+
     def test_age_and_future_timestamps(self) -> None:
         self.make_pack()
         self.assertIn("pack_old", self.codes(self.verify(now=NOW + timedelta(days=20)), "warning"))

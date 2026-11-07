@@ -31,8 +31,10 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__, gitrun, injection, policy, redact, safepath, schema, store
+from . import consent as consent_mod
 from . import pack as pack_mod
 from . import scan as scan_mod
+from .budget import COVERAGE_PARTIAL, coverage_of
 from .config import load_config
 from .errors import (
     EXIT_CRITICAL_LOSS,
@@ -89,6 +91,7 @@ class VerifyReport:
     new_commits: int = 0
     commits_since: list[tuple[str, str]] = field(default_factory=list)
     new_sources: list[str] = field(default_factory=list)
+    unapproved_sources: list[str] = field(default_factory=list)
     age_days: float | None = None
 
     def add(
@@ -136,6 +139,7 @@ class VerifyReport:
             "new_commits": self.new_commits,
             "commits_since": [{"sha": sha, "subject": subject} for sha, subject in self.commits_since],
             "new_sources": self.new_sources,
+            "unapproved_sources": self.unapproved_sources,
         }
 
 
@@ -269,7 +273,22 @@ def _check_safety(report: VerifyReport, pack: dict[str, Any], root: Path, deny: 
                 report.add(ERROR, "unsafe_source_path", f"source {source['id']} has an invalid label", source["id"])
 
 
+def _check_coverage(report: VerifyReport, pack: dict[str, Any]) -> None:
+    """The declared coverage must match the counts; a pack may never look more complete than it is."""
+    items = [item for _section, item in _items(pack)]
+    expected = coverage_of(
+        pack["budget"]["retention"], len(items), sum(1 for i in items if FLAG_TRUNCATED in i["flags"]),
+        len(pack["critical_loss"]),
+    )  # fmt: skip
+    if pack["coverage"] != expected:
+        report.add(ERROR, "coverage_misstated", f"the pack declares coverage '{pack['coverage']['status']}', "
+                   f"its counts say '{expected['status']}'")  # fmt: skip
+    elif expected["status"] == COVERAGE_PARTIAL:
+        report.add(WARNING, "partial_coverage", expected["statement"])
+
+
 def _check_quality(report: VerifyReport, pack: dict[str, Any]) -> None:
+    _check_coverage(report, pack)
     if pack["critical_loss"]:
         sections = Counter(entry["section"] for entry in pack["critical_loss"])
         detail = ", ".join(f"{k} {v}" for k, v in sorted(sections.items()))
@@ -391,8 +410,13 @@ def _check_freshness(
         else:  # session handoff: there is nothing to compare against
             report.sources.append(SourceStatus(sid, origin, label, "not_checkable"))
 
-    pending_at_pack_time = " ".join(w["detail"] for w in pack["warnings"] if w["code"] == "sources_pending_approval")
-    report.new_sources = sorted(p for p in current if p not in labels and p not in pending_at_pack_time)
+    considered = set(pack["considered_sources"]) | labels
+    report.new_sources = sorted(p for p in current if p not in considered)
+    try:
+        approved = set(consent_mod.load(root).files)
+    except consent_mod.ConsentError:
+        approved = set()
+    report.unapproved_sources = [p for p in report.new_sources if p not in approved]
     if report.new_sources:
         report.add(INFO, "new_sources_since_pack", f"{len(report.new_sources)} new source(s) are not in the pack")
 
@@ -503,7 +527,7 @@ def format_text(report: VerifyReport) -> str:
     safe = scan_mod._safe
     pack = report.pack or {}
     words = {
-        "ok": "OK",
+        "ok": "OK (integrity, safety and freshness checks passed)",
         "ok_with_warnings": "OK with warnings",
         "failed": "FAILED - do not use this pack",
         "critical_information_loss": "CRITICAL INFORMATION LOSS recorded in this pack",
@@ -512,6 +536,8 @@ def format_text(report: VerifyReport) -> str:
     if pack:
         lines.append(f"Pack {pack['pack_id']} · created {pack['created_at']} ({report.age_days:g} days ago)")
     lines.append(f"Result: {words[report.result]}")
+    if pack.get("coverage"):
+        lines.append(f"Coverage: {safe(pack['coverage']['statement'])}")
     if report.sources:
         counts = Counter(s.status for s in report.sources)
         lines.append("Sources: " + ", ".join(f"{n} {status}" for status, n in sorted(counts.items())))

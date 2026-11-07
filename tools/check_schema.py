@@ -37,6 +37,9 @@ MUTATIONS = {
 }
 
 
+ITEM_MUTATIONS = {"status", "flags", "lines"}
+
+
 def main() -> int:
     validator = jsonschema.Draft202012Validator(
         json.loads((REPO / "schema" / "context-pack-v1.schema.json").read_text())
@@ -57,6 +60,8 @@ def main() -> int:
             )
             ok = ok and not json_errors and not own_errors
             for name, mutate in MUTATIONS.items():
+                if name in ITEM_MUTATIONS and not pack["sections"]:
+                    continue  # a tiny hard budget can leave no items at all
                 broken = copy.deepcopy(pack)
                 mutate(broken)
                 rejected = (bool(list(validator.iter_errors(broken))), bool(schema.validate(broken)))

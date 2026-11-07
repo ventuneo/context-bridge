@@ -40,8 +40,11 @@ class GenuinePackTests(unittest.TestCase):
                     result = pack.build(root, handoff=handoff, approve=True, budget=budget, hard_budget=hard)
                     report = verify.verify(root)
                     self.assertEqual(report.errors, [])
-                    # verify reports critical loss exactly when the pack recorded one
-                    self.assertEqual(report.exit_code, 3 if result.pack["critical_loss"] else 0, report.findings)
+                    # verify reports critical loss with 3 and partial coverage with 1, never "ok" for an incomplete pack
+                    coverage = result.pack["coverage"]["status"]
+                    wanted_exit = 3 if result.pack["critical_loss"] else 1 if coverage == "partial" else 0
+                    self.assertEqual(report.exit_code, wanted_exit, report.findings)
+                    self.assertEqual(coverage == "critical_loss", bool(result.pack["critical_loss"]))
                     self.assertTrue(all(s.status in ("fresh", "not_checkable") for s in report.sources))
 
 

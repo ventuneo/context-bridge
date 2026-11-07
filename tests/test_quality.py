@@ -92,7 +92,8 @@ class MeasuredPropertyTests(unittest.TestCase):
             hard = sorted(runs(case, "hard"), key=lambda r: r["budget"])
             self.assertEqual([r["score"] for r in hard], sorted(r["score"] for r in hard))
             for r in hard:
-                self.assertLessEqual(r["tokens"], r["budget"])  # a hard budget is never exceeded
+                # the rendered pack fits the hard budget, or the pack says plainly that it cannot
+                self.assertTrue(r["tokens"] <= r["budget"] or "budget_unreachable" in r["warnings"], r)
                 if r["critical_missing"]:
                     self.assertTrue(r["loss_reported"] and r["pack_exit"] == 3 and r["verify_exit"] == 3)
         large = {r["budget"]: r for r in runs("large", "hard")}
@@ -149,7 +150,7 @@ class EvaluatorTests(unittest.TestCase):
         sources = [{"id": f"S{i}", "origin": "session" if f"S{i}" in session_ids else "file", "label": f"f{i}.md"}
                    for i in range(1, 4)]  # fmt: skip
         return {"sources": sources, "sections": [{"items": items}], "budget": {"estimated_tokens": 200},
-                "critical_loss": []}  # fmt: skip
+                "critical_loss": [], "coverage": {"status": "partial"}, "warnings": []}  # fmt: skip
 
     def test_score_is_points_found_over_points_possible(self) -> None:
         expected = {"items": [

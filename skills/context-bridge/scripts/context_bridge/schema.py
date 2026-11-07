@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from .budget import COVERAGE_STATUSES
 from .model import (
     CRITICAL,
     FLAG_INJECTION,
@@ -94,8 +95,9 @@ def validate(pack: Any) -> list[str]:
     v = _Validator()
     top = {
         "format": str, "schema_version": str, "pack_id": str, "created_at": str, "generator": dict,
-        "project": dict, "trust": dict, "privacy": dict, "budget": dict, "critical_loss": list,
-        "sources": list, "sections": list, "redactions": dict, "warnings": list, "integrity": dict,
+        "project": dict, "trust": dict, "privacy": dict, "budget": dict, "coverage": dict, "critical_loss": list,
+        "sources": list, "considered_sources": list, "sections": list, "redactions": dict, "warnings": list,
+        "integrity": dict,
     }  # fmt: skip
     if not v.obj(pack, "pack", top):
         return v.problems
@@ -132,6 +134,20 @@ def validate(pack: Any) -> list[str]:
             )
         for i, entry in enumerate(pack["budget"]["dropped"]):
             v.obj(entry, f"pack.budget.dropped[{i}]", {"section": str, "items": int})
+
+    if not all(isinstance(label, str) and label for label in pack["considered_sources"]):
+        v.error("pack.considered_sources", "must be a list of non-empty strings")
+    coverage_keys = {"status": str, "extracted_items": int, "kept_items": int, "dropped_items": dict,
+                     "truncated_items": int, "extraction": str, "statement": str}  # fmt: skip
+    if v.obj(pack["coverage"], "pack.coverage", coverage_keys):
+        coverage = pack["coverage"]
+        if coverage["status"] not in COVERAGE_STATUSES:
+            v.error("pack.coverage.status", "unknown coverage status")
+        if coverage["extraction"] != "selective":
+            v.error("pack.coverage.extraction", "must be 'selective'")
+        v.obj(
+            coverage["dropped_items"], "pack.coverage.dropped_items", {CRITICAL: int, "important": int, "context": int}
+        )
 
     source_ids: set[str] = set()
     for i, source in enumerate(pack["sources"]):

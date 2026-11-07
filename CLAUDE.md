@@ -7,6 +7,7 @@ Roadmap: `docs/roadmap.md`.
 
 | Path | Content |
 |---|---|
+| `skills/context-bridge/SKILL.md` | The Claude Code skill: workflows for scan, pack, verify, resume and the safety rules; `references/` holds handoff, format and security notes |
 | `skills/context-bridge/scripts/cb.py` | Entry point, always run as `python3 -I cb.py …` |
 | `skills/context-bridge/scripts/context_bridge/` | Package: safety core, `scan`, `pack` (model, extract/, budget, consent, store, render), `verify` (schema), `resume` |
 | `schema/` | Published JSON Schema of the pack format (cross-checked by `tools/check_schema.py` in CI) |
@@ -24,6 +25,10 @@ python3 -I skills/context-bridge/scripts/cb.py verify|resume --root <dir> [--pac
 python3 -I quality/run.py [--check] [--details]      # Context Quality Score; --check = gates + baseline
 python3 tools/privacy_check.py --all | --history
 ```
+
+Local install for testing: symlink `~/.claude/skills/context-bridge` to `skills/context-bridge`.
+`SKILL.md` may only run `python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py ...` as a single plain command
+(that is what `allowed-tools` permits); pass the handoff with `--handoff-json`, never via pipe or heredoc.
 
 ## Rules
 

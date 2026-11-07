@@ -130,7 +130,8 @@ def _truncate(item: Item) -> bool:
 
 def select(items: list[Item], budget: int = DEFAULT_BUDGET, hard_budget: bool = False) -> Selection:
     """Choose items for the pack within ``budget`` tokens (see module docstring)."""
-    truncated = [item for item in items if _truncate(item)]
+    # Idempotent: select may run again on the same items when the rendered pack is too large.
+    truncated = [item for item in items if _truncate(item) or FLAG_TRUNCATED in item.flags]
     used = HEADER_TOKENS
     sources: set[str] = set()
     per_section: Counter[str] = Counter()
@@ -171,3 +172,52 @@ def tier_counts(items: list[Item]) -> dict[str, int]:
     for item in items:
         counts[item.tier] += 1
     return counts
+
+
+# --- coverage ------------------------------------------------------------------------
+COVERAGE_ALL = "all_extracted_items_kept"
+COVERAGE_PARTIAL = "partial"
+COVERAGE_CRITICAL = "critical_loss"
+COVERAGE_STATUSES = (COVERAGE_ALL, COVERAGE_PARTIAL, COVERAGE_CRITICAL)
+
+
+def coverage_of(retention: dict[str, dict[str, int]], kept_items: int, truncated_kept: int, critical_loss: int) -> dict:
+    """The pack's declared coverage, derived only from counts so ``verify`` can recompute it.
+
+    A pack is never called complete or lossless: even when every extracted item is kept,
+    extraction itself is selective (text outside recognised sections is not packed).
+    """
+    dropped = {CRITICAL: 0, IMPORTANT: 0, CONTEXT: 0}
+    extracted = 0
+    for key, stats in retention.items():
+        dropped[SECTION_BY_KEY[key].tier] += stats["dropped"]
+        extracted += stats["extracted"]
+    total = sum(dropped.values())
+    detail = ", ".join(f"{tier} {n}" for tier, n in dropped.items() if n) or "none"
+    if critical_loss:
+        status = COVERAGE_CRITICAL
+        statement = (
+            f"CRITICAL INFORMATION LOSS: {critical_loss} critical item(s) were dropped or shortened; "
+            f"{total} of {extracted} extracted items were left out ({detail})."
+        )
+    elif total or truncated_kept:
+        status = COVERAGE_PARTIAL
+        statement = (
+            f"PARTIAL: {total} of {extracted} extracted items were left out to fit the budget ({detail}) "
+            f"and {truncated_kept} were shortened. Extraction is selective as well."
+        )
+    else:
+        status = COVERAGE_ALL
+        statement = (
+            f"All {kept_items} extracted items are included. Extraction is selective: text outside "
+            "recognised sections is not in the pack, so the pack is not a full copy of the project."
+        )
+    return {
+        "status": status,
+        "extracted_items": extracted,
+        "kept_items": kept_items,
+        "dropped_items": dropped,
+        "truncated_items": truncated_kept,
+        "extraction": "selective",
+        "statement": statement,
+    }
