@@ -162,8 +162,12 @@ def _read_project_config(root: Path) -> str | None:
     return text
 
 
-def load_config(root: Path, user_path: Path | None = None) -> Config:
-    """Load and merge the configuration for project ``root``."""
+def load_config(root: Path, user_path: Path | None = None, include_project: bool = True) -> Config:
+    """Load and merge the configuration for project ``root``.
+
+    With ``include_project=False`` nothing inside ``root`` is read, so callers can check
+    deny roots before touching the project at all.
+    """
     warnings: list[str] = []
     cfg = Config()
     user_path = user_path or user_config_path()
@@ -192,7 +196,7 @@ def load_config(root: Path, user_path: Path | None = None) -> Config:
             user_config_path=user_path,
         )
 
-    project_text = _read_project_config(root)
+    project_text = _read_project_config(root) if include_project else None
     if project_text is not None:
         origin = "project config"
         data = _parse(project_text, origin)

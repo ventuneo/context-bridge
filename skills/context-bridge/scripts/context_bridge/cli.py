@@ -26,8 +26,18 @@ def build_parser() -> argparse.ArgumentParser:
         description="Extract, compress, verify and restore project context for AI sessions.",
     )
     parser.add_argument("--version", action="version", version=f"context-bridge {__version__}")
-    parser.add_subparsers(dest="command", metavar="<command>", parser_class=_Parser)
+    sub = parser.add_subparsers(dest="command", metavar="<command>", parser_class=_Parser)
+    _register_scan(sub)
     return parser
+
+
+def _register_scan(sub: argparse._SubParsersAction) -> None:
+    from . import scan as scan_mod
+
+    p = sub.add_parser("scan", help="show which project files may be used and why others are excluded (writes nothing)")
+    p.add_argument("--root", default=".", help="project root (default: current directory)")
+    p.add_argument("--json", action="store_true", help="print the report as JSON")
+    p.set_defaults(handler=scan_mod.run_cli)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

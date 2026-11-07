@@ -5,8 +5,8 @@ sources, compresses it into a small, source-anchored **context pack**, verifies 
 restores it in a new AI session. Packs are plain JSON and Markdown, so they also work
 with other assistants.
 
-> **Status:** early development (milestones M0–M2: skeleton, safety core, `scan`).
-> Not ready for use yet.
+> **Status:** early development. `scan` works; `pack`, `resume` and `verify` are planned.
+> Not ready for everyday use yet.
 
 ## Principles
 
@@ -21,7 +21,7 @@ with other assistants.
 
 | Command  | Purpose                                                        | Status  |
 |----------|----------------------------------------------------------------|---------|
-| `scan`   | Show which files may be used and why others are excluded       | M2      |
+| `scan`   | Show which files may be used and why others are excluded       | done    |
 | `pack`   | Build a compressed context pack                                | planned |
 | `resume` | Restore context in a new session                               | planned |
 | `verify` | Check structure, integrity, freshness and safety of a pack     | planned |
