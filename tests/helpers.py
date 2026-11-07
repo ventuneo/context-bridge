@@ -76,6 +76,7 @@ def isolated_env(home: Path) -> dict[str, str]:
     env.update(
         HOME=str(home),
         XDG_CONFIG_HOME=str(home / ".config"),
+        XDG_STATE_HOME=str(home / ".local" / "state"),
         GIT_CONFIG_GLOBAL=os.devnull,
         GIT_CONFIG_NOSYSTEM="1",
         GIT_AUTHOR_NAME="Test",
@@ -88,11 +89,12 @@ def isolated_env(home: Path) -> dict[str, str]:
 
 @contextlib.contextmanager
 def patched_home(home: Path) -> Iterator[Path]:
-    """Point HOME/XDG_CONFIG_HOME at ``home`` for in-process tests."""
-    keys = ("HOME", "XDG_CONFIG_HOME", "CONTEXT_BRIDGE_CONFIG")
+    """Point HOME and the XDG config/state directories at ``home`` for in-process tests."""
+    keys = ("HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "CONTEXT_BRIDGE_CONFIG")
     saved = {k: os.environ.get(k) for k in keys}
     os.environ["HOME"] = str(home)
     os.environ["XDG_CONFIG_HOME"] = str(home / ".config")
+    os.environ["XDG_STATE_HOME"] = str(home / ".local" / "state")
     os.environ.pop("CONTEXT_BRIDGE_CONFIG", None)
     try:
         yield home
@@ -151,11 +153,12 @@ class TempProject:
             self.git("add", "-A")
             self.git("commit", "-q", "-m", "initial", "--allow-empty")
 
-    def run_cb(self, *args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
+    def run_cb(self, *args: str, cwd: Path | None = None, input_text: str | None = None) -> subprocess.CompletedProcess:
         return subprocess.run(
             [sys.executable, "-I", str(CB_SCRIPT), *args],
             cwd=cwd or self.root,
             env=isolated_env(self.home),
+            input=input_text,
             capture_output=True,
             text=True,
             check=False,

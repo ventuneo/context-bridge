@@ -70,6 +70,9 @@ class ScanReport:
     included: list[IncludedFile] = field(default_factory=list)
     excluded: dict[str, list[str]] = field(default_factory=dict)
     warnings: list[dict[str, Any]] = field(default_factory=list)
+    # Internal, never serialised: sanitised texts for pack (scan reads each file once).
+    keep_text: bool = False
+    texts: dict[str, str] = field(default_factory=dict, repr=False)
 
     def exclude(self, reason: str, path: str) -> None:
         self.excluded.setdefault(reason, []).append(path)
@@ -184,6 +187,8 @@ def _read_and_add(
         return
     clean, secrets, personal, flagged = _analyse(text, cfg)
     total[0] += content.size
+    if report.keep_text:
+        report.texts[label] = clean
     report.included.append(
         IncludedFile(
             path=label,
@@ -230,7 +235,7 @@ def _scan_external(report: ScanReport, cfg: Config, root: Path, deny: policy.Den
         _read_and_add(report, cfg, base, rel, label, "external_note", "external", total)
 
 
-def scan(root_arg: str | os.PathLike[str], user_config_path: Path | None = None) -> ScanReport:
+def scan(root_arg: str | os.PathLike[str], user_config_path: Path | None = None, keep_text: bool = False) -> ScanReport:
     root = safepath.resolve_root(root_arg)
     user_only = load_config(root, user_config_path, include_project=False)
     deny = user_only.deny()
@@ -249,6 +254,7 @@ def scan(root_arg: str | os.PathLike[str], user_config_path: Path | None = None)
             "redact_pii": cfg.redact_pii,
             "deny_roots": len(cfg.deny_roots),
         },
+        keep_text=keep_text,
     )
     report.warnings.extend({"code": "config_warning", "detail": w} for w in cfg.warnings)
 

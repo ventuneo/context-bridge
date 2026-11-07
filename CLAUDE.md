@@ -8,7 +8,8 @@ Roadmap: `docs/roadmap.md`.
 | Path | Content |
 |---|---|
 | `skills/context-bridge/scripts/cb.py` | Entry point, always run as `python3 -I cb.py …` |
-| `skills/context-bridge/scripts/context_bridge/` | Package: safety core, scan, later pack/resume/verify |
+| `skills/context-bridge/scripts/context_bridge/` | Package: safety core, `scan`, `pack` (model, extract/, budget, consent, store, render); later resume/verify |
+| `quality/` | Synthetic reference cases with ground truth and `evaluate.py` (retention metrics) |
 | `tests/` | `unittest` suite; `helpers.py` isolates HOME and guards the real home directory |
 | `tools/privacy_check.py` | Repository privacy guard used by `.githooks/` |
 
@@ -17,6 +18,8 @@ Roadmap: `docs/roadmap.md`.
 ```sh
 python3 -m unittest discover -s tests
 python3 -I skills/context-bridge/scripts/cb.py scan --root <dir> [--json]
+python3 -I skills/context-bridge/scripts/cb.py pack --root <dir> [--approve] [--handoff -] [--dry-run]
+python3 -I quality/evaluate.py                     # retention metrics per case and budget
 python3 tools/privacy_check.py --all | --history
 ```
 

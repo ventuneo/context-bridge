@@ -28,6 +28,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"context-bridge {__version__}")
     sub = parser.add_subparsers(dest="command", metavar="<command>", parser_class=_Parser)
     _register_scan(sub)
+    from . import pack as pack_mod
+
+    pack_mod.register(sub)
     return parser
 
 

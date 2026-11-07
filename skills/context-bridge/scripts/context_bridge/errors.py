@@ -29,3 +29,9 @@ class UnsafePathError(ContextBridgeError):
     def __init__(self, reason: str, message: str | None = None) -> None:
         super().__init__(message or reason)
         self.reason = reason
+
+
+class UsageError(ContextBridgeError):
+    """Invalid command-line values."""
+
+    exit_code = EXIT_USAGE
