@@ -16,5 +16,14 @@ src = ["skills/context-bridge/scripts", "tests", "tools"]
 select = ["E", "F", "W", "I", "B", "UP", "S"]
 ignore = ["S101", "S603", "S607"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["context_bridge"]
+known-local-folder = ["helpers"]
+# helpers puts the package on sys.path, so it must be imported first.
+section-order = ["future", "standard-library", "third-party", "local-folder", "first-party"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "E501"]
+# Reason-code constants such as SECRET_FILE are not passwords.
+"skills/context-bridge/scripts/context_bridge/policy.py" = ["S105"]
+"skills/context-bridge/scripts/context_bridge/redact.py" = ["S105"]

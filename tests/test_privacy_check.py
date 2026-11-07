@@ -32,7 +32,7 @@ class CheckTextTests(unittest.TestCase):
 
     def test_emails(self) -> None:
         self.assertEqual(self.reasons("mail jane" + "@gmail.com"), ["e-mail address"])
-        self.assertEqual(self.reasons("dev@example.com, noreply@anthropic.com, " + NOREPLY), [])
+        self.assertEqual(self.reasons("dev@example.com, ops@service.test, noreply@anthropic.com, " + NOREPLY), [])
 
     def test_private_terms_case_insensitive(self) -> None:
         self.assertEqual(self.reasons("Project TOPSECRET notes", ["topsecret"]), ["private term 'topsecret'"])
@@ -51,7 +51,11 @@ class HookTests(unittest.TestCase):
         env.update(GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_EMAIL=email)
         return subprocess.run(
             [sys.executable, "-I", str(PRIVACY_CHECK), *args],
-            cwd=self.project.root, env=env, capture_output=True, text=True, check=False,
+            cwd=self.project.root,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
         )
 
     def stage(self, rel: str, content: str) -> None:

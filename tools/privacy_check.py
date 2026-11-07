@@ -36,6 +36,7 @@ EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-
 ALLOWED_EMAIL_DOMAINS = frozenset({"example.com", "example.org", "example.net"})
 ALLOWED_EMAILS = frozenset({"noreply@anthropic.com", "git@github.com"})
 NOREPLY_SUFFIX = "@users.noreply.github.com"
+RESERVED_TLDS = (".example", ".test", ".invalid", ".localhost")  # RFC 2606
 
 
 @dataclass(frozen=True)
@@ -81,7 +82,7 @@ def email_allowed(address: str) -> bool:
     if address in ALLOWED_EMAILS or address.endswith(NOREPLY_SUFFIX):
         return True
     domain = address.rsplit("@", 1)[-1]
-    return domain in ALLOWED_EMAIL_DOMAINS or domain.endswith(".example")
+    return domain in ALLOWED_EMAIL_DOMAINS or domain.endswith(RESERVED_TLDS)
 
 
 def check_text(text: str, where: str, terms: list[str]) -> list[Finding]:
@@ -107,7 +108,8 @@ def check_identity(terms: list[str]) -> list[Finding]:
         match = re.match(r"(.*) <([^>]*)>", ident)
         name, email = (match.group(1), match.group(2)) if match else (ident, "")
         if not email.casefold().endswith(NOREPLY_SUFFIX):
-            findings.append(Finding(var, 0, "identity must use a GitHub no-reply e-mail (git config --local user.email)"))
+            hint = "identity must use a GitHub no-reply e-mail (git config --local user.email)"
+            findings.append(Finding(var, 0, hint))
         findings += [Finding(var, 0, f"private term '{t}' in name") for t in terms if t in name.casefold()]
     return findings
 

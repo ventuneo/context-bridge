@@ -8,7 +8,7 @@ untrusted project cannot shadow the standard library or this package.
 
 import sys
 
-if sys.version_info < (3, 11):
+if sys.version_info < (3, 11):  # noqa: UP036 - must run on old Pythons to explain
     sys.stderr.write("context-bridge requires Python 3.11 or newer\n")
     sys.exit(2)
 
