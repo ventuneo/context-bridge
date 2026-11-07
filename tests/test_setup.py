@@ -99,10 +99,20 @@ class InstallTests(SetupTestCase):
 
     def test_block_language_follows_the_file_or_the_choice(self) -> None:
         german = plan_install("global", "instructions", self.root, self.cfg())
-        self.assertIn("Zu Beginn einer Sitzung", german.after.decode())
+        self.assertIn("zu Beginn mit dem Skill context-bridge `resume`", german.after.decode())
         self.assertNotIn("ß", german.after.decode())
         english = plan_install("global", "instructions", self.root, self.cfg(), lang="en")
-        self.assertIn("At the start of a session", english.after.decode())
+        self.assertIn("run `resume` with the context-bridge skill at the start", english.after.decode())
+
+    def test_block_is_short_and_matches_the_heading_style(self) -> None:
+        # GERMAN_RULES has one "#" title; a file structured with several "#" sections gets a "#" section.
+        self.global_md.write_text("# Über mich\n- a\n\n# Antworten\n- b\n", encoding="utf-8")
+        block = plan_install("global", "instructions", self.root, self.cfg()).after.decode().split("\n\n", 2)[-1]
+        self.assertTrue(block.splitlines()[1] == "# Context Bridge", block)
+        self.assertEqual(sum(1 for line in block.splitlines() if line.startswith("- ")), 2)
+        self.assertLess(len(block) / 4, 80)  # roughly 70 tokens including the markers
+        project = plan_install("project", "instructions", self.root, self.cfg()).after.decode()
+        self.assertIn("\n## Context Bridge\n", project)
 
     def test_missing_file_is_created_and_undo_deletes_it(self) -> None:
         local = self.root / "CLAUDE.local.md"
@@ -135,7 +145,7 @@ class IdempotencyTests(SetupTestCase):
         self.assertEqual(plan.action, "update")
         text = (self.root / "CLAUDE.md").read_text(encoding="utf-8")
         self.assertEqual(len(BLOCK_RE.findall(text)), 1)
-        self.assertIn("Zu Beginn", text)
+        self.assertIn("zu Beginn", text)
         self.assertTrue(text.rstrip().endswith("- Added later."))
 
     def test_existing_mentions_block_a_second_entry(self) -> None:
