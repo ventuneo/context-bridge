@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import unittest
 
+import helpers  # noqa: F401  (puts the package on sys.path)
+
 from context_bridge import injection
 
 
