@@ -1,0 +1,14 @@
+# Python byte code embeds absolute source paths
+__pycache__/
+*.py[cod]
+# OS and editor noise
+.DS_Store
+.idea/
+.vscode/
+# Local, personal files – never versioned
+CLAUDE.local.md
+.claude/settings.local.json
+.env
+.env.*
+# Context Bridge runtime store (also self-ignored)
+.context-bridge/
