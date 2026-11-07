@@ -1,0 +1,24 @@
+{
+  "case": "conflicts",
+  "description": "Contradicting information: a March goal in the README versus a session decision to move to April, a superseded ADR next to its replacement, a statement in both the session and a file, session notes with every status and an unlabeled entry.",
+  "noise": {"source_dirs": 4, "files_per_dir": 3},
+  "gates": {"reference_budget": 2000, "min_score": 90},
+  "items": [
+    {"id": "G1", "category": "goal", "criticality": "critical", "all": ["release version 1.0 in march"], "status": "fact", "origin": "file", "source": "README.md", "also_in_session": true},
+    {"id": "G2", "category": "goal", "criticality": "critical", "all": ["crash rate below one percent"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "D1", "category": "decision", "criticality": "critical", "all": ["moves from march to april", "security review takes longer"], "status": "fact", "origin": "session"},
+    {"id": "D2", "category": "decision", "criticality": "critical", "all": ["sqlite replaces postgresql"], "status": "fact", "origin": "file", "source": "docs/decisions/0002-sqlite.md"},
+    {"id": "D3", "category": "decision", "criticality": "important", "all": ["postgresql is the main database"], "status": "fact", "origin": "file", "source": "docs/decisions/0001-postgres.md"},
+    {"id": "C1", "category": "constraint", "criticality": "critical", "all": ["do not change the database again"], "status": "assumption", "origin": "session"},
+    {"id": "N1", "category": "next_step", "criticality": "critical", "all": ["whether april still works"], "status": "uncertain", "origin": "session"},
+    {"id": "S1", "category": "fact", "criticality": "important", "all": ["beta with forty testers"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "S2", "category": "fact", "criticality": "important", "all": ["security review found two open issues"], "status": "fact", "origin": "session"},
+    {"id": "S3", "category": "fact", "criticality": "normal", "all": ["superseded by 0002"], "status": "fact", "origin": "file", "source": "docs/decisions/0001-postgres.md"},
+    {"id": "A1", "category": "assumption", "criticality": "important", "all": ["review takes about one week"], "status": "assumption", "origin": "file", "source": "notes.md"},
+    {"id": "Q1", "category": "open_question", "criticality": "important", "all": ["data export before the release"], "status": "uncertain", "origin": "file", "source": "notes.md"},
+    {"id": "Q2", "category": "open_question", "criticality": "important", "all": ["legal text is probably fine"], "status": "uncertain", "origin": "file", "source": "notes.md"},
+    {"id": "Q3", "category": "open_question", "criticality": "important", "all": ["reporting stay on postgresql"], "status": "uncertain", "origin": "session", "flags": ["unlabeled"]},
+    {"id": "O1", "category": "fact", "criticality": "normal", "all": ["tracks the release checklist"], "status": "fact", "origin": "file", "source": "README.md"}
+  ],
+  "forbidden": [{"id": "F1", "any": ["print('noise"]}]
+}

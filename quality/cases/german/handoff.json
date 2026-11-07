@@ -1,0 +1,7 @@
+{
+  "goal": {"text": "Die Juniorenabteilung testet die Anmeldung vor den Herbstferien.", "status": "fact"},
+  "decisions": [{"text": "Rechnungen werden als PDF per E-Mail verschickt", "reason": "der Kassier will kein Papier mehr", "status": "fact"}],
+  "next_steps": [{"text": "Mit dem Kassier die Rechnungsvorlage abstimmen.", "status": "fact"}],
+  "constraints": [{"text": "Der Zahlungsanbieter muss TWINT unterstützen.", "status": "assumption"}],
+  "open_questions": ["Reicht ein einzelner Admin-Zugang für den Vorstand?"]
+}

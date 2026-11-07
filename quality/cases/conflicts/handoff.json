@@ -1,0 +1,8 @@
+{
+  "goal": {"text": "Release version 1.0 in March.", "status": "fact"},
+  "decisions": [{"text": "The release moves from March to April", "reason": "the security review takes longer", "status": "fact"}],
+  "next_steps": [{"text": "Ask the customer whether April still works.", "status": "uncertain"}],
+  "constraints": [{"text": "Do not change the database again before the release.", "status": "assumption"}],
+  "open_questions": ["Should reporting stay on PostgreSQL?"],
+  "status": {"text": "The security review found two open issues.", "status": "fact"}
+}

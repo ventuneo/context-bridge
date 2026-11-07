@@ -1,0 +1,6 @@
+{
+  "name": "orchard-logistics",
+  "description": "Office dashboard and tooling for Orchard Logistics.",
+  "scripts": {"dev": "vite", "build": "vite build", "test": "vitest run", "lint": "eslint ."},
+  "dependencies": {"vue": "^3.5.0", "chart.js": "^4.4.0"}
+}

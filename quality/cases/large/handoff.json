@@ -1,0 +1,16 @@
+{
+  "goal": {"text": "Onboard the next five farms before the cherry harvest.", "status": "fact"},
+  "status": {"text": "The route service passed the load test with eighty trucks.", "status": "fact"},
+  "done": [{"text": "Migrated background jobs to the PostgreSQL queue.", "status": "fact"}],
+  "decisions": [
+    {"text": "Route re-planning runs every fifteen minutes", "reason": "drivers need stable routes", "status": "fact"},
+    {"text": "Farm owners get read-only access first", "reason": "permissions are not designed yet", "status": "assumption"}
+  ],
+  "constraints": [{"text": "The cherry harvest window must not be blocked by deployments.", "status": "fact"}],
+  "next_steps": [
+    {"text": "Write the onboarding checklist for new farms.", "status": "fact"},
+    {"text": "Measure dashboard load time on old office PCs.", "status": "fact"},
+    "Ask the cooperative which farms come next."
+  ],
+  "open_questions": [{"text": "Whether the forecast should include weather data.", "status": "uncertain"}]
+}

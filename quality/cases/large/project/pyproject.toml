@@ -1,0 +1,4 @@
+[project]
+name = "orchard-planner"
+requires-python = ">=3.11"
+dependencies = ["psycopg", "fastapi"]

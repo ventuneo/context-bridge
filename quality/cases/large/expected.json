@@ -1,0 +1,625 @@
+{
+  "case": "large",
+  "description": "Large synthetic project: ten ADRs, two agent rule files, roadmap, assumptions, operations, glossary, changelog, three manifests and a long session handoff, plus 40 generated guides with filler and competing conventions, 400 code files and a .env secret.",
+  "noise": {
+    "source_dirs": 50,
+    "files_per_dir": 8,
+    "env_secret": "COOP_DB_PASSWORD=never-pack-this-555",
+    "docs": {
+      "count": 40,
+      "dir": "docs/guides",
+      "paragraphs": 3,
+      "conventions": 2,
+      "tasks_every": 3
+    }
+  },
+  "gates": {
+    "reference_budget": 4000,
+    "min_score": 90,
+    "max_compression": 0.2
+  },
+  "items": [
+    {
+      "id": "G1",
+      "category": "goal",
+      "criticality": "critical",
+      "all": [
+        "traceable from the tree row"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "README.md"
+    },
+    {
+      "id": "G2",
+      "category": "goal",
+      "criticality": "critical",
+      "all": [
+        "planned at least two weeks ahead"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "README.md"
+    },
+    {
+      "id": "G3",
+      "category": "goal",
+      "criticality": "critical",
+      "all": [
+        "routes before six in the morning"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "README.md"
+    },
+    {
+      "id": "G4",
+      "category": "goal",
+      "criticality": "critical",
+      "all": [
+        "yield forecast on one screen"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "README.md"
+    },
+    {
+      "id": "G5",
+      "category": "goal",
+      "criticality": "critical",
+      "all": [
+        "onboard the next five farms",
+        "cherry harvest"
+      ],
+      "status": "fact",
+      "origin": "session"
+    },
+    {
+      "id": "C1",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "personal data of pickers"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "C2",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "reversible migration"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "C3",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "never delete harvest records"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "C4",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "stored in utc",
+        "local time"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "C5",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "without the planner being available"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "C6",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "payment data is only handled by the accounting system"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "C7",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "api token and rate limits"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "C8",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "releases happen on tuesdays"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "C9",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "never print secrets or tokens in logs"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "AGENTS.md"
+    },
+    {
+      "id": "C10",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "migrations against production without a backup"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "AGENTS.md"
+    },
+    {
+      "id": "C11",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "encrypted and kept for ninety days"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/operations.md"
+    },
+    {
+      "id": "C12",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "load in under two seconds"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/operations.md"
+    },
+    {
+      "id": "C13",
+      "category": "constraint",
+      "criticality": "critical",
+      "all": [
+        "harvest window must not be blocked"
+      ],
+      "status": "fact",
+      "origin": "session"
+    },
+    {
+      "id": "D1",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "postgresql stores all planning data"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0001-postgres.md"
+    },
+    {
+      "id": "D2",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "append-only event log"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0002-event-log.md"
+    },
+    {
+      "id": "D3",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "four-hour slots"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0003-cooling-slots.md"
+    },
+    {
+      "id": "D4",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "self-hosted routing engine"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0004-routing.md"
+    },
+    {
+      "id": "D5",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "one deployable service",
+        "five developers"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0005-monolith.md"
+    },
+    {
+      "id": "D6",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "stores scans offline"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0006-offline-app.md"
+    },
+    {
+      "id": "D7",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "last three seasons as training data"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0007-forecast.md"
+    },
+    {
+      "id": "D8",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "existing identity provider"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0008-auth.md"
+    },
+    {
+      "id": "D9",
+      "category": "decision",
+      "criticality": "important",
+      "all": [
+        "background jobs run on a redis queue"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0009-redis-queue.md"
+    },
+    {
+      "id": "D10",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "postgresql-based queue instead of redis"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/decisions/0010-postgres-queue.md"
+    },
+    {
+      "id": "D11",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "re-planning runs every fifteen minutes",
+        "drivers need stable routes"
+      ],
+      "status": "fact",
+      "origin": "session"
+    },
+    {
+      "id": "D12",
+      "category": "decision",
+      "criticality": "critical",
+      "all": [
+        "farm owners get read-only access"
+      ],
+      "status": "assumption",
+      "origin": "session"
+    },
+    {
+      "id": "N1",
+      "category": "next_step",
+      "criticality": "critical",
+      "all": [
+        "connect the picker app to the event log"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "N2",
+      "category": "next_step",
+      "criticality": "critical",
+      "all": [
+        "cooling slot conflicts in the office dashboard"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "N3",
+      "category": "next_step",
+      "criticality": "critical",
+      "all": [
+        "truck breaks down"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "N4",
+      "category": "next_step",
+      "criticality": "critical",
+      "all": [
+        "import last season's yields"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "N5",
+      "category": "next_step",
+      "criticality": "critical",
+      "all": [
+        "prepare the onboarding of the next five farms"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "N6",
+      "category": "next_step",
+      "criticality": "critical",
+      "all": [
+        "onboarding checklist for new farms"
+      ],
+      "status": "fact",
+      "origin": "session"
+    },
+    {
+      "id": "N7",
+      "category": "next_step",
+      "criticality": "critical",
+      "all": [
+        "dashboard load time on old office pcs"
+      ],
+      "status": "fact",
+      "origin": "session"
+    },
+    {
+      "id": "N8",
+      "category": "next_step",
+      "criticality": "critical",
+      "all": [
+        "which farms come next"
+      ],
+      "status": "uncertain",
+      "origin": "session",
+      "flags": [
+        "unlabeled"
+      ]
+    },
+    {
+      "id": "S1",
+      "category": "fact",
+      "criticality": "important",
+      "all": [
+        "runs in production for three farms"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "README.md"
+    },
+    {
+      "id": "S2",
+      "category": "fact",
+      "criticality": "important",
+      "all": [
+        "load test with eighty trucks"
+      ],
+      "status": "fact",
+      "origin": "session"
+    },
+    {
+      "id": "S3",
+      "category": "fact",
+      "criticality": "important",
+      "all": [
+        "migrated background jobs"
+      ],
+      "status": "fact",
+      "origin": "session"
+    },
+    {
+      "id": "S4",
+      "category": "fact",
+      "criticality": "important",
+      "all": [
+        "cooling slot conflicts report"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CHANGELOG.md"
+    },
+    {
+      "id": "Q1",
+      "category": "open_question",
+      "criticality": "important",
+      "all": [
+        "separate login for farm owners"
+      ],
+      "status": "uncertain",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "Q2",
+      "category": "open_question",
+      "criticality": "important",
+      "all": [
+        "archived by law"
+      ],
+      "status": "uncertain",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "Q3",
+      "category": "open_question",
+      "criticality": "important",
+      "all": [
+        "see each other's routes"
+      ],
+      "status": "uncertain",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "Q4",
+      "category": "open_question",
+      "criticality": "important",
+      "all": [
+        "include weather data"
+      ],
+      "status": "uncertain",
+      "origin": "session"
+    },
+    {
+      "id": "Q5",
+      "category": "open_question",
+      "criticality": "important",
+      "all": [
+        "mountain roads"
+      ],
+      "status": "uncertain",
+      "origin": "file",
+      "source": "docs/roadmap.md"
+    },
+    {
+      "id": "A1",
+      "category": "assumption",
+      "criticality": "important",
+      "all": [
+        "stable mobile network at the cooling house"
+      ],
+      "status": "assumption",
+      "origin": "file",
+      "source": "docs/assumptions.md"
+    },
+    {
+      "id": "A2",
+      "category": "assumption",
+      "criticality": "important",
+      "all": [
+        "same accounting system for two years"
+      ],
+      "status": "assumption",
+      "origin": "file",
+      "source": "docs/assumptions.md"
+    },
+    {
+      "id": "O1",
+      "category": "fact",
+      "criticality": "normal",
+      "all": [
+        "plans harvest, cooling and delivery"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "README.md"
+    },
+    {
+      "id": "T1",
+      "category": "fact",
+      "criticality": "normal",
+      "all": [
+        "python project 'orchard-planner'"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "pyproject.toml"
+    },
+    {
+      "id": "V1",
+      "category": "fact",
+      "criticality": "normal",
+      "all": [
+        "type hints in all python modules"
+      ],
+      "status": "fact",
+      "origin": "file",
+      "source": "CLAUDE.md"
+    },
+    {
+      "id": "R1",
+      "category": "fact",
+      "criticality": "normal",
+      "all": [
+        "archive key",
+        "redacted:aws access key id"
+      ],
+      "origin": "file",
+      "flags": [
+        "redacted"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "F1",
+      "any": [
+        "{{FAKE_AWS_KEY}}"
+      ]
+    },
+    {
+      "id": "F2",
+      "any": [
+        "never-pack-this-555"
+      ]
+    },
+    {
+      "id": "F3",
+      "any": [
+        "print('noise"
+      ]
+    }
+  ]
+}

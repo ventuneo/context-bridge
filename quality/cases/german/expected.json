@@ -1,0 +1,33 @@
+{
+  "case": "german",
+  "description": "Kleines Vereinsprojekt nur auf Deutsch: Ziele, Regeln, Entscheidung, Ziel:/Status:/Nächster Schritt:-Zeilen, Annahmen, Offenes, Sitzungsübergabe mit Annahme und unbeschriftetem Eintrag.",
+  "noise": {"source_dirs": 6, "files_per_dir": 3},
+  "gates": {"reference_budget": 2000, "min_score": 90},
+  "items": [
+    {"id": "G1", "category": "goal", "criticality": "critical", "all": ["online für trainings an"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "G2", "category": "goal", "criticality": "critical", "all": ["automatisch abgerechnet"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "G3", "category": "goal", "criticality": "critical", "all": ["saisonstart im august"], "status": "fact", "origin": "file", "source": "notizen.md"},
+    {"id": "G4", "category": "goal", "criticality": "critical", "all": ["juniorenabteilung testet"], "status": "fact", "origin": "session"},
+    {"id": "C1", "category": "constraint", "criticality": "critical", "all": ["servern in der schweiz"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "C2", "category": "constraint", "criticality": "critical", "all": ["keine werbung", "kein tracking"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "C3", "category": "constraint", "criticality": "critical", "all": ["schweizer schreibweise"], "status": "fact", "origin": "file", "source": "CLAUDE.md"},
+    {"id": "C4", "category": "constraint", "criticality": "critical", "all": ["änderung an beiträgen", "test"], "status": "fact", "origin": "file", "source": "CLAUDE.md"},
+    {"id": "C5", "category": "constraint", "criticality": "critical", "all": ["twint"], "status": "assumption", "origin": "session"},
+    {"id": "D1", "category": "decision", "criticality": "critical", "all": ["postgresql speichert mitglieder"], "status": "fact", "origin": "file", "source": "docs/entscheidungen/0001-datenbank.md"},
+    {"id": "D2", "category": "decision", "criticality": "critical", "all": ["rechnungen werden als pdf", "kein papier mehr"], "status": "fact", "origin": "session"},
+    {"id": "N1", "category": "next_step", "criticality": "critical", "all": ["anmeldeformular"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "N2", "category": "next_step", "criticality": "critical", "all": ["zahlungsanbieter für die beiträge"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "N3", "category": "next_step", "criticality": "critical", "all": ["testlauf mit der juniorenabteilung"], "status": "fact", "origin": "file", "source": "notizen.md"},
+    {"id": "N4", "category": "next_step", "criticality": "critical", "all": ["rechnungsvorlage abstimmen"], "status": "fact", "origin": "session"},
+    {"id": "A1", "category": "assumption", "criticality": "important", "all": ["trainer haben ein smartphone"], "status": "assumption", "origin": "file"},
+    {"id": "Q1", "category": "open_question", "criticality": "important", "all": ["rechnungen auf papier"], "status": "uncertain", "origin": "file"},
+    {"id": "Q2", "category": "open_question", "criticality": "important", "all": ["kalenderexport"], "status": "uncertain", "origin": "file"},
+    {"id": "Q3", "category": "open_question", "criticality": "important", "all": ["warteliste"], "status": "uncertain", "origin": "file"},
+    {"id": "Q4", "category": "open_question", "criticality": "important", "all": ["admin-zugang für den vorstand"], "status": "uncertain", "origin": "session", "flags": ["unlabeled"]},
+    {"id": "S1", "category": "fact", "criticality": "important", "all": ["prototyp mit zwei trainingsgruppen"], "status": "fact", "origin": "file", "source": "notizen.md"},
+    {"id": "O1", "category": "fact", "criticality": "normal", "all": ["organisiert trainings"], "status": "fact", "origin": "file", "source": "README.md"},
+    {"id": "T1", "category": "fact", "criticality": "normal", "all": ["python project", "vereinsplaner", "psycopg"], "status": "fact", "origin": "file", "source": "pyproject.toml"},
+    {"id": "V1", "category": "fact", "criticality": "normal", "all": ["funktionsnamen auf englisch"], "status": "fact", "origin": "file", "source": "CLAUDE.md"}
+  ],
+  "forbidden": [{"id": "F1", "any": ["print('noise"]}]
+}

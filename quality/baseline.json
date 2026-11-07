@@ -1,0 +1,212 @@
+{
+  "basic": {
+    "500-soft": {
+      "score": 71.2,
+      "critical_found": 14,
+      "critical_total": 14
+    },
+    "500-hard": {
+      "score": 55.9,
+      "critical_found": 11,
+      "critical_total": 14
+    },
+    "1000-soft": {
+      "score": 98.3,
+      "critical_found": 14,
+      "critical_total": 14
+    },
+    "1000-hard": {
+      "score": 98.3,
+      "critical_found": 14,
+      "critical_total": 14
+    },
+    "2000-soft": {
+      "score": 100.0,
+      "critical_found": 14,
+      "critical_total": 14
+    },
+    "2000-hard": {
+      "score": 100.0,
+      "critical_found": 14,
+      "critical_total": 14
+    },
+    "4000-soft": {
+      "score": 100.0,
+      "critical_found": 14,
+      "critical_total": 14
+    },
+    "4000-hard": {
+      "score": 100.0,
+      "critical_found": 14,
+      "critical_total": 14
+    }
+  },
+  "conflicts": {
+    "500-soft": {
+      "score": 91.2,
+      "critical_found": 6,
+      "critical_total": 6
+    },
+    "500-hard": {
+      "score": 91.2,
+      "critical_found": 6,
+      "critical_total": 6
+    },
+    "1000-soft": {
+      "score": 100.0,
+      "critical_found": 6,
+      "critical_total": 6
+    },
+    "1000-hard": {
+      "score": 100.0,
+      "critical_found": 6,
+      "critical_total": 6
+    },
+    "2000-soft": {
+      "score": 100.0,
+      "critical_found": 6,
+      "critical_total": 6
+    },
+    "2000-hard": {
+      "score": 100.0,
+      "critical_found": 6,
+      "critical_total": 6
+    },
+    "4000-soft": {
+      "score": 100.0,
+      "critical_found": 6,
+      "critical_total": 6
+    },
+    "4000-hard": {
+      "score": 100.0,
+      "critical_found": 6,
+      "critical_total": 6
+    }
+  },
+  "german": {
+    "500-soft": {
+      "score": 75.0,
+      "critical_found": 15,
+      "critical_total": 15
+    },
+    "500-hard": {
+      "score": 55.0,
+      "critical_found": 11,
+      "critical_total": 15
+    },
+    "1000-soft": {
+      "score": 100.0,
+      "critical_found": 15,
+      "critical_total": 15
+    },
+    "1000-hard": {
+      "score": 100.0,
+      "critical_found": 15,
+      "critical_total": 15
+    },
+    "2000-soft": {
+      "score": 100.0,
+      "critical_found": 15,
+      "critical_total": 15
+    },
+    "2000-hard": {
+      "score": 100.0,
+      "critical_found": 15,
+      "critical_total": 15
+    },
+    "4000-soft": {
+      "score": 100.0,
+      "critical_found": 15,
+      "critical_total": 15
+    },
+    "4000-hard": {
+      "score": 100.0,
+      "critical_found": 15,
+      "critical_total": 15
+    }
+  },
+  "injection": {
+    "500-soft": {
+      "score": 91.2,
+      "critical_found": 9,
+      "critical_total": 9
+    },
+    "500-hard": {
+      "score": 91.2,
+      "critical_found": 9,
+      "critical_total": 9
+    },
+    "1000-soft": {
+      "score": 100.0,
+      "critical_found": 9,
+      "critical_total": 9
+    },
+    "1000-hard": {
+      "score": 100.0,
+      "critical_found": 9,
+      "critical_total": 9
+    },
+    "2000-soft": {
+      "score": 100.0,
+      "critical_found": 9,
+      "critical_total": 9
+    },
+    "2000-hard": {
+      "score": 100.0,
+      "critical_found": 9,
+      "critical_total": 9
+    },
+    "4000-soft": {
+      "score": 100.0,
+      "critical_found": 9,
+      "critical_total": 9
+    },
+    "4000-hard": {
+      "score": 100.0,
+      "critical_found": 9,
+      "critical_total": 9
+    }
+  },
+  "large": {
+    "500-soft": {
+      "score": 81.3,
+      "critical_found": 37,
+      "critical_total": 37
+    },
+    "500-hard": {
+      "score": 25.9,
+      "critical_found": 12,
+      "critical_total": 37
+    },
+    "1000-soft": {
+      "score": 81.3,
+      "critical_found": 37,
+      "critical_total": 37
+    },
+    "1000-hard": {
+      "score": 58.3,
+      "critical_found": 27,
+      "critical_total": 37
+    },
+    "2000-soft": {
+      "score": 97.1,
+      "critical_found": 37,
+      "critical_total": 37
+    },
+    "2000-hard": {
+      "score": 97.1,
+      "critical_found": 37,
+      "critical_total": 37
+    },
+    "4000-soft": {
+      "score": 100.0,
+      "critical_found": 37,
+      "critical_total": 37
+    },
+    "4000-hard": {
+      "score": 100.0,
+      "critical_found": 37,
+      "critical_total": 37
+    }
+  }
+}

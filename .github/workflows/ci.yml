@@ -24,6 +24,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Unit tests
         run: python -W error -m unittest discover -s tests -v
+      - name: Context Quality Score gates
+        run: python -I quality/run.py --check
       - name: JSON Schema cross-check (dev-only dependency)
         run: |
           python -m pip install "jsonschema==4.23.0"

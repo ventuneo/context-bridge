@@ -1,0 +1,4 @@
+[project]
+name = "vereinsplaner"
+requires-python = ">=3.11"
+dependencies = ["psycopg"]

@@ -37,6 +37,17 @@ $CB verify --root path/to/project                 # integrity, safety, freshness
 $CB resume --root path/to/project                 # verified pack, wrapped as untrusted data
 ```
 
+### Quality
+
+The Context Quality Score measures, on five synthetic reference projects including a large one,
+how many goals, constraints, decisions, next steps and facts survive compression at budgets
+from 500 to 4000 tokens, whether statuses and sources are right, and how much smaller the
+pack is than its sources. See [docs/quality.md](docs/quality.md).
+
+```sh
+python3 -I quality/run.py --check
+```
+
 ### Verification
 
 - **Structure:** `schema.validate` (standard library) and the published JSON Schema in
