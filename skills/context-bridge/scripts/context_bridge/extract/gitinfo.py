@@ -6,6 +6,7 @@ Commit subjects are untrusted text and are sanitised like every other item.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -90,3 +91,54 @@ def git_items(info: GitInfo, source_id: str) -> list[Item]:
             )
         )
     return items
+
+
+# --- helpers for verify/resume -------------------------------------------------------
+# References come from packs, which are untrusted: only plain hex object names are ever
+# passed to git, so a crafted value cannot be read as an option such as --output=...
+GIT_REF_RE = re.compile(r"^[0-9a-f]{4,40}$")
+
+
+def _safe_ref(ref: str) -> str:
+    if not GIT_REF_RE.match(ref):
+        raise ValueError("invalid git reference")
+    return ref
+
+
+def ref_exists(root: Path, ref: str) -> bool:
+    try:
+        gitrun.run_git(root, ["cat-file", "-e", f"{_safe_ref(ref)}^{{commit}}"])
+    except gitrun.GitError:
+        return False
+    return True
+
+
+def is_ancestor(root: Path, ref: str) -> bool:
+    """True if ``ref`` is part of the current history (not rewritten away by amend or rebase)."""
+    try:
+        gitrun.run_git(root, ["merge-base", "--is-ancestor", _safe_ref(ref), "HEAD"])
+    except gitrun.GitError:
+        return False
+    return True
+
+
+def commits_since(root: Path, ref: str, limit: int = 10) -> tuple[int, list[tuple[str, str]]]:
+    """Number of commits after ``ref`` and the newest ``limit`` of them as (sha, subject)."""
+    span = f"{_safe_ref(ref)}..HEAD"
+    count = int(gitrun.run_git(root, ["rev-list", "--count", span]).strip() or 0)
+    log = gitrun.run_git(root, ["log", f"-n{limit}", "--no-show-signature", "--format=%h%x00%s%x1e", span])
+    commits = []
+    for record in filter(None, (r.strip("\n") for r in log.decode("utf-8", "replace").split("\x1e"))):
+        sha, _, subject = record.partition("\x00")
+        commits.append((sha, subject))
+    return count, commits
+
+
+def commit_info(root: Path, sha: str) -> tuple[str, str] | None:
+    """(date, subject) of a commit, or None if it does not exist."""
+    try:
+        out = gitrun.run_git(root, ["show", "-s", "--no-show-signature", "--format=%cs%x00%s", _safe_ref(sha)])
+    except gitrun.GitError:
+        return None
+    date, _, subject = out.decode("utf-8", "replace").strip("\n").partition("\x00")
+    return date, subject

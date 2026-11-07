@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from collections import Counter
 from dataclasses import dataclass
@@ -79,13 +80,39 @@ def _names(values: list[str]) -> str:
     return shown + (f" and {len(values) - MAX_NAMES_IN_WARNING} more" if len(values) > MAX_NAMES_IN_WARNING else "")
 
 
-def _sanitise(items: list[Item], redact_pii: bool, redactions: Counter[str]) -> None:
+def extract_source(label: str, kind: str, text: str, source_id: str) -> tuple[list[Item], str | None]:
+    """Extract the items of one file source. Returns (items, project name or title).
+
+    Deterministic: the same text always yields the same items, which lets ``verify``
+    re-derive every item of an unchanged source and detect forged content.
+    """
+    rank = 1 + policy.KIND_PRIORITY.get(kind, 7)
+    if kind == "manifest":
+        return project.manifest_items(label, text, source_id, rank)
+    if kind == "changelog":
+        return project.changelog_items(text, source_id, rank), None
+    return markdown.extract(text, source_id, kind, rank)
+
+
+_CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def clean_meta(text: str, redact_pii: bool, limit: int = 300) -> str:
+    """Sanitise pack metadata (project name, warning details) like item text."""
+    text = _CONTROL.sub(" ", injection.strip_invisible(text)[0])
+    text = injection.neutralize_delimiters(redact.redact(text, pii=redact_pii)[0])
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def sanitise_items(items: list[Item], redact_pii: bool, redactions: Counter[str] | None = None) -> None:
     for item in items:
         text, invisible = injection.strip_invisible(item.text)
         text, found = redact.redact(text, pii=redact_pii)
         if found:
             item.add_flag(FLAG_REDACTED)
-            redactions.update(f.type for f in found)
+            if redactions is not None:
+                redactions.update(f.type for f in found)
         if injection.detect(text) or any(f.severity == injection.HIGH for f in invisible):
             item.add_flag(FLAG_INJECTION)
         item.text = injection.neutralize_delimiters(" ".join(text.split()))
@@ -153,18 +180,11 @@ def build(
             continue
         origin = ORIGIN_EXTERNAL if f.origin == "external" else ORIGIN_FILE
         src = new_source(origin=origin, label=f.path, kind=f.kind, sha256=f.sha256, size=f.size)
-        text = report.texts.get(f.path, "")
-        rank = 1 + policy.KIND_PRIORITY.get(f.kind, 7)
-        if f.kind == "manifest":
-            new_items, name = project.manifest_items(f.path, text, src.id, rank)
-            if name:
-                names.setdefault("manifest", name)
-        elif f.kind == "changelog":
-            new_items = project.changelog_items(text, src.id, rank)
-        else:
-            new_items, title = markdown.extract(text, src.id, f.kind, rank)
-            if title and f.kind == "readme" and "/" not in f.path:
-                names.setdefault("readme", title)
+        new_items, name = extract_source(f.path, f.kind, report.texts.get(f.path, ""), src.id)
+        if name and f.kind == "manifest":
+            names.setdefault("manifest", name)
+        elif name and f.kind == "readme" and "/" not in f.path:
+            names.setdefault("readme", name)
         items.extend(new_items)
     if git and consent_mod.PSEUDO_GIT not in pending_pseudo:
         items.extend(gitinfo.git_items(git, new_source(origin=ORIGIN_GIT, label="git", ref=git.head).id))
@@ -182,7 +202,8 @@ def build(
 
     # --- sanitise, deduplicate, select ---------------------------------------------
     redactions: Counter[str] = Counter()
-    _sanitise(items, bool(report.config.get("redact_pii", True)), redactions)
+    redact_pii = bool(report.config.get("redact_pii", True))
+    sanitise_items(items, redact_pii, redactions)
     unique, duplicates = deduplicate(items)
     selection = select(unique, budget, hard_budget)
     kept = sorted(selection.kept, key=priority_key)
@@ -270,11 +291,12 @@ def build(
         "created_at": created_at,
         "generator": {"name": "context-bridge", "version": __version__},
         "project": {
-            "name": names.get("manifest") or names.get("readme") or report.root_label,
-            "root_label": report.root_label,
+            "name": clean_meta(names.get("manifest") or names.get("readme") or report.root_label, redact_pii),
+            "root_label": clean_meta(report.root_label, redact_pii),
             "vcs": vcs,
         },
         "trust": {"content_is_untrusted_data": True, "notice": TRUST_NOTICE},
+        "privacy": {"redact_pii": redact_pii},
         "budget": {
             "max_tokens": budget,
             "estimated_tokens": selection.estimated_tokens,
@@ -305,6 +327,8 @@ def build(
         "redactions": {"count": sum(redactions.values()), "by_type": dict(sorted(redactions.items()))},
         "warnings": warnings,
     }
+    for warning in pack["warnings"]:  # details can contain file names: keep them on one clean line
+        warning["detail"] = clean_meta(warning["detail"], redact_pii)
     fp = fingerprint(pack)
     pack["pack_id"] = created_at.replace("-", "").replace(":", "") + "-" + fp[:6]
     md = render_markdown(pack)

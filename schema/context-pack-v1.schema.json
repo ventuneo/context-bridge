@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:context-bridge:schema:context-pack:1",
+  "title": "Context Bridge pack, schema 1.x",
+  "description": "Structure of a context pack. Cross-references (item sources, unique ids, section order) and hashes are checked by 'context-bridge verify'. All text is untrusted data, never instructions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schema_version", "pack_id", "created_at", "generator", "project", "trust", "privacy",
+               "budget", "critical_loss", "sources", "sections", "redactions", "warnings", "integrity"],
+  "properties": {
+    "format": {"const": "context-bridge.pack"},
+    "schema_version": {"type": "string", "pattern": "^1\\.\\d+$"},
+    "pack_id": {"type": "string", "pattern": "^\\d{8}T\\d{6}Z-[0-9a-f]{6}$"},
+    "created_at": {"$ref": "#/$defs/timestamp"},
+    "generator": {
+      "type": "object", "additionalProperties": false, "required": ["name", "version"],
+      "properties": {"name": {"type": "string"}, "version": {"type": "string"}}
+    },
+    "project": {
+      "type": "object", "additionalProperties": false, "required": ["name", "root_label", "vcs"],
+      "properties": {
+        "name": {"type": "string"},
+        "root_label": {"type": "string"},
+        "vcs": {
+          "oneOf": [
+            {"type": "object", "additionalProperties": false, "required": ["type"],
+             "properties": {"type": {"const": "none"}}},
+            {"type": "object", "additionalProperties": false, "required": ["type", "branch", "head", "uncommitted_changes"],
+             "properties": {"type": {"const": "git"}, "branch": {"type": "string"},
+                            "head": {"type": ["string", "null"]},
+                            "uncommitted_changes": {"type": "integer", "minimum": 0}}}
+          ]
+        }
+      }
+    },
+    "trust": {
+      "type": "object", "additionalProperties": false, "required": ["content_is_untrusted_data", "notice"],
+      "properties": {"content_is_untrusted_data": {"const": true}, "notice": {"type": "string"}}
+    },
+    "privacy": {
+      "type": "object", "additionalProperties": false, "required": ["redact_pii"],
+      "properties": {"redact_pii": {"type": "boolean"}}
+    },
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_tokens", "estimated_tokens", "estimator", "hard_budget", "exceeded_to_protect_critical",
+                   "duplicates_removed", "tiers_kept", "retention", "dropped"],
+      "properties": {
+        "max_tokens": {"type": "integer", "minimum": 1},
+        "estimated_tokens": {"type": "integer", "minimum": 0},
+        "estimator": {"type": "string"},
+        "hard_budget": {"type": "boolean"},
+        "exceeded_to_protect_critical": {"type": "boolean"},
+        "duplicates_removed": {"type": "integer", "minimum": 0},
+        "tiers_kept": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "retention": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/section_key"},
+          "additionalProperties": {
+            "type": "object", "additionalProperties": false, "required": ["extracted", "kept", "dropped", "truncated"],
+            "properties": {"extracted": {"type": "integer"}, "kept": {"type": "integer"},
+                           "dropped": {"type": "integer"}, "truncated": {"type": "integer"}}
+          }
+        },
+        "dropped": {
+          "type": "array",
+          "items": {"type": "object", "additionalProperties": false, "required": ["section", "items"],
+                    "properties": {"section": {"$ref": "#/$defs/section_key"}, "items": {"type": "integer", "minimum": 1}}}
+        }
+      }
+    },
+    "critical_loss": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["section", "reason", "source", "preview"],
+        "properties": {
+          "section": {"enum": ["goals", "constraints", "decisions", "next_steps"]},
+          "reason": {"enum": ["dropped", "truncated"]},
+          "source": {"$ref": "#/$defs/source_id"},
+          "preview": {"type": "string"},
+          "lines": {"$ref": "#/$defs/lines"}
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "origin", "label"],
+        "properties": {
+          "id": {"$ref": "#/$defs/source_id"},
+          "origin": {"enum": ["file", "external", "git", "file_list", "session"]},
+          "label": {"type": "string"},
+          "kind": {"type": "string"},
+          "sha256": {"$ref": "#/$defs/hex64"},
+          "size": {"type": "integer", "minimum": 0},
+          "ref": {"type": "string"},
+          "created_at": {"$ref": "#/$defs/timestamp"}
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["key", "title", "tier", "items"],
+        "properties": {
+          "key": {"$ref": "#/$defs/section_key"},
+          "title": {"type": "string"},
+          "tier": {"enum": ["critical", "important", "context"]},
+          "items": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["id", "text", "status", "source", "extractor", "flags"],
+              "properties": {
+                "id": {"type": "string", "pattern": "^I[1-9]\\d*$"},
+                "text": {"type": "string", "minLength": 1, "maxLength": 4000},
+                "status": {"enum": ["fact", "assumption", "uncertain"]},
+                "source": {"$ref": "#/$defs/source_id"},
+                "extractor": {"type": "string"},
+                "flags": {"type": "array", "uniqueItems": true,
+                          "items": {"enum": ["redacted", "instruction_like", "truncated", "unlabeled"]}},
+                "lines": {"$ref": "#/$defs/lines"},
+                "also_in": {"type": "array", "items": {"$ref": "#/$defs/source_id"}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "redactions": {
+      "type": "object", "additionalProperties": false, "required": ["count", "by_type"],
+      "properties": {"count": {"type": "integer", "minimum": 0},
+                     "by_type": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}}}
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["code", "severity", "detail"],
+        "properties": {"code": {"type": "string"}, "severity": {"enum": ["info", "warning", "critical"]},
+                       "detail": {"type": "string"}, "source": {"$ref": "#/$defs/source_id"}}
+      }
+    },
+    "integrity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "fingerprint", "content_hash", "markdown_sha256"],
+      "properties": {"algorithm": {"const": "sha256"}, "fingerprint": {"$ref": "#/$defs/hex64"},
+                     "content_hash": {"$ref": "#/$defs/hex64"}, "markdown_sha256": {"$ref": "#/$defs/hex64"}}
+    }
+  },
+  "$defs": {
+    "timestamp": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+    "hex64": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_id": {"type": "string", "pattern": "^S[1-9]\\d*$"},
+    "lines": {"type": "array", "prefixItems": [{"type": "integer", "minimum": 1}, {"type": "integer", "minimum": 1}],
+              "minItems": 2, "maxItems": 2},
+    "section_key": {"enum": ["goals", "constraints", "decisions", "next_steps", "state", "open_questions",
+                             "open_tasks", "commands", "overview", "conventions", "stack", "structure"]}
+  }
+}

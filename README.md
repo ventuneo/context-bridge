@@ -5,8 +5,8 @@ sources, compresses it into a small, source-anchored **context pack**, verifies 
 restores it in a new AI session. Packs are plain JSON and Markdown, so they also work
 with other assistants.
 
-> **Status:** early development. `scan` and `pack` work; `resume` and `verify` are planned.
-> Not ready for everyday use yet.
+> **Status:** early development. `scan`, `pack`, `verify` and `resume` work; the Claude Code skill
+> instructions (`SKILL.md`) are next. Not ready for everyday use yet.
 
 ## Principles
 
@@ -23,8 +23,8 @@ with other assistants.
 |----------|----------------------------------------------------------------|---------|
 | `scan`   | Show which files may be used and why others are excluded       | done    |
 | `pack`   | Build a compressed context pack from approved sources          | done    |
-| `resume` | Restore context in a new session                               | planned |
-| `verify` | Check structure, integrity, freshness and safety of a pack     | planned |
+| `resume` | Verify the latest pack and print it for a new session          | done    |
+| `verify` | Check structure, integrity, safety and freshness of a pack     | done    |
 
 ```sh
 CB="python3 -I skills/context-bridge/scripts/cb.py"
@@ -33,7 +33,23 @@ $CB pack --root path/to/project --approve         # first pack: approve the curr
 echo '{"next_steps": [{"text": "Write verify", "status": "fact"}]}' \
   | $CB pack --root path/to/project --handoff -   # add a session handoff from stdin
 $CB pack --root path/to/project --dry-run         # print the pack, write nothing
+$CB verify --root path/to/project                 # integrity, safety, freshness of the latest pack
+$CB resume --root path/to/project                 # verified pack, wrapped as untrusted data
 ```
+
+### Verification
+
+- **Structure:** `schema.validate` (standard library) and the published JSON Schema in
+  `schema/context-pack-v1.schema.json` for other tools.
+- **Integrity:** fingerprint, content hash, pack id and Markdown hash are recomputed.
+- **Provenance:** for every unchanged source file, each item must be re-derivable by the same
+  extractor. A forged item is detected even if all hashes were recomputed.
+- **Safety:** secrets, personal data, hidden characters, wrapper delimiters, unflagged
+  instruction-like text, an altered trust notice and unsafe source paths are errors.
+- **Freshness:** changed and missing sources, outdated items, new commits, rewritten history,
+  new sources and the pack age (default limit 14 days).
+- `resume` never shows a pack that fails verification. Everything that comes from the project is
+  inside `<context_bridge_pack trust="untrusted-data">`, escaped so it cannot close the wrapper.
 
 ### Packs
 

@@ -24,6 +24,10 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Unit tests
         run: python -W error -m unittest discover -s tests -v
+      - name: JSON Schema cross-check (dev-only dependency)
+        run: |
+          python -m pip install "jsonschema==4.23.0"
+          python tools/check_schema.py
       - name: Privacy guard (tracked files and history)
         run: |
           python tools/privacy_check.py --all

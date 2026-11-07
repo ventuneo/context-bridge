@@ -18,7 +18,7 @@ ignore = ["S101", "S603", "S607"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["context_bridge"]
-known-local-folder = ["helpers"]
+known-local-folder = ["helpers", "packtools"]
 # helpers puts the package on sys.path, so it must be imported first.
 section-order = ["future", "standard-library", "third-party", "local-folder", "first-party"]
 
