@@ -17,6 +17,9 @@ Example user config::
 
     [scan]
     max_file_bytes = 262144
+
+    [setup]
+    protected_roots = ["~/notes"]   # setup never writes CLAUDE.md or settings below these
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ _LIMIT_BOUNDS = {"max_file_bytes": (1, 16 * 1024 * 1024), "max_total_bytes": (1,
 
 _USER_KEYS = {
     "privacy": {"deny_roots", "allowed_external_roots", "redact_pii"},
+    "setup": {"protected_roots"},
     "scan": {"include", "exclude", "max_file_bytes", "max_total_bytes"},
 }
 _PROJECT_KEYS = {
@@ -47,7 +51,7 @@ _PROJECT_KEYS = {
     "scan": {"include", "exclude", "max_file_bytes", "max_total_bytes"},
     "sources": {"external"},
 }
-_USER_ONLY = {("privacy", "deny_roots"), ("privacy", "allowed_external_roots")}
+_USER_ONLY = {("privacy", "deny_roots"), ("privacy", "allowed_external_roots"), ("setup", "protected_roots")}
 
 
 @dataclass(frozen=True)
@@ -55,6 +59,7 @@ class Config:
     deny_roots: tuple[Path, ...] = ()
     allowed_external_roots: tuple[Path, ...] = ()
     external_sources: tuple[Path, ...] = ()
+    protected_roots: tuple[Path, ...] = ()  # setup never writes below these
     include: tuple[tuple[str, str], ...] = DEFAULT_INCLUDE
     exclude: tuple[str, ...] = ()
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
@@ -193,6 +198,9 @@ def load_config(root: Path, user_path: Path | None = None, include_project: bool
             redact_pii=_bool(_get(data, "privacy", "redact_pii", _USER_KEYS), "redact_pii", origin)
             if _get(data, "privacy", "redact_pii", _USER_KEYS) is not None
             else cfg.redact_pii,
+            protected_roots=tuple(
+                _paths(_get(data, "setup", "protected_roots", _USER_KEYS), "setup.protected_roots", origin)
+            ),
             user_config_path=user_path,
         )
 

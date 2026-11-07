@@ -36,6 +36,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify_mod.register(sub)
     resume_mod.register(sub)
+    from . import setup as setup_mod
+
+    setup_mod.register(sub)
     return parser
 
 

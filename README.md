@@ -25,6 +25,7 @@ with other assistants.
 | `pack`   | Build a compressed context pack from approved sources          | done    |
 | `resume` | Verify the latest pack and print it for a new session          | done    |
 | `verify` | Check structure, integrity, safety and freshness of a pack     | done    |
+| `setup`  | Integrate into CLAUDE.md or a SessionStart hook, with preview  | done    |
 
 ```sh
 CB="python3 -I skills/context-bridge/scripts/cb.py"
@@ -36,6 +37,29 @@ $CB pack --root path/to/project --dry-run         # print the pack, write nothin
 $CB verify --root path/to/project                 # integrity, safety, freshness of the latest pack
 $CB resume --root path/to/project                 # verified pack, wrapped as untrusted data
 ```
+
+### Integration (setup)
+
+`/context-bridge setup` (or `cb.py setup`) adds a short, marked Context Bridge block to a CLAUDE.md
+file and, optionally, a SessionStart hook that prints a one-line notice when a project has a pack.
+
+```sh
+$CB setup status --root .                                   # which CLAUDE.md files exist, what is protected
+$CB setup preview --target global|project|local --root .    # diff and preview id, writes nothing
+$CB setup apply --target project --confirm <id> --root .    # writes exactly the previewed change
+$CB setup undo-preview --target project --root .            # diff of the undo
+$CB setup undo --target project --confirm <id> --root .     # restore the backup
+$CB setup preview --target global --hook --root .           # the optional hook, same steps
+```
+
+- Nothing is written without a preview id; a file that changed after the preview is refused.
+- Every write is backed up in `$XDG_STATE_HOME/context-bridge/setup/`; undo restores it exactly, or
+  removes only Context Bridge's own block or hook entry when the file changed since.
+- Idempotent: a second run changes nothing; other mentions of Context Bridge and a block in another
+  scope are reported instead of written twice.
+- Never written: symlinked targets, files inside an Obsidian vault, denied locations and
+  `[setup] protected_roots` from the user config, invalid settings files.
+- The skill may run `status`, `preview` and `undo-preview` on its own; `apply` and `undo` always ask.
 
 ### Quality
 
