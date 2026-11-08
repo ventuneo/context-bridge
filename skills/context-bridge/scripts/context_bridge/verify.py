@@ -1,6 +1,9 @@
 """verify: check a context pack's structure, integrity, safety and freshness.
 
 1. **Structure**: ``schema.validate``. Any problem stops verification (exit 2).
+   **Origin**: the pack's exact bytes must be in the record that ``pack`` keeps outside the
+   project (``origin``); a pack that came with the project, from another folder or from an
+   older version is an error (exit 2), whatever the other checks find.
 2. **Integrity**: fingerprint, content hash, pack id and the Markdown hash are
    recomputed; the Markdown is re-rendered from the JSON and compared.
 3. **Safety**: the finished pack is scanned again: secrets, personal data (when the
@@ -33,6 +36,7 @@ from typing import Any
 
 from . import __version__, gitrun, injection, policy, redact, safepath, schema, store
 from . import consent as consent_mod
+from . import origin as origin_mod
 from . import pack as pack_mod
 from . import scan as scan_mod
 from .budget import COVERAGE_PARTIAL, coverage_of
@@ -58,6 +62,12 @@ _CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 _COMMIT_ITEM = re.compile(r"^Recent commit ([0-9a-f]{4,40}) \((\d{4}-\d{2}-\d{2})\): (.*)$")
 _UNSAFE_REASONS = {policy.SECRET_FILE, policy.SECRET_DIR, policy.PERSONAL_FILE, policy.NOISE_DIR}
 FILE_ORIGINS = (ORIGIN_FILE, ORIGIN_EXTERNAL)
+PACK_NOT_LOCAL = "pack_not_local"
+NOT_LOCAL_DETAIL = (
+    "Context Bridge did not write this pack for this folder on this machine: it came with the project "
+    "(a clone or a copy), from another folder, was edited, or predates version 0.4. It is not trusted; "
+    "create a new pack with 'pack'"
+)
 
 
 class PackLoadError(ContextBridgeError):
@@ -200,6 +210,13 @@ def _load(root: Path, pack_arg: str | None) -> tuple[str, bytes, str | None]:
 
 def _items(pack: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     return [(section["key"], item) for section in pack["sections"] for item in section["items"]]
+
+
+def _check_origin(report: VerifyReport, pack: dict[str, Any], raw: bytes, root: Path) -> None:
+    """Only a pack that ``pack`` wrote for this folder on this machine can pass."""
+    local, reason = origin_mod.is_local(root, pack["pack_id"], raw)
+    if not local:
+        report.add(ERROR, PACK_NOT_LOCAL, f"{NOT_LOCAL_DETAIL} ({reason})")
 
 
 def _check_integrity(report: VerifyReport, pack: dict[str, Any], markdown: str | None, rel: str, root: Path) -> None:
@@ -548,6 +565,7 @@ def verify(
             report.add(ERROR, "schema_invalid", problem)
         return report
     report.pack = data
+    _check_origin(report, data, raw, root)
     _check_integrity(report, data, markdown, rel, root)
     _check_safety(report, data, root, deny)
     _check_quality(report, data)

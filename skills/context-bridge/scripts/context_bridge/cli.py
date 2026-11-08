@@ -31,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     from . import pack as pack_mod
 
     pack_mod.register(sub)
+    from . import approve as approve_mod
+
+    approve_mod.register(sub)
     from . import resume as resume_mod
     from . import verify as verify_mod
 

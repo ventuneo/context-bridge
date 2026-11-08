@@ -52,6 +52,8 @@ class SkillTests(unittest.TestCase):
                    for python in pythons for c in commands]  # fmt: skip
         self.assertEqual(fields["allowed-tools"], ", ".join(allowed))
         self.assertNotIn("setup apply", fields["allowed-tools"])
+        # Approving sources must always ask the user: neither its own command nor an option of pack.
+        self.assertNotIn("approve", fields["allowed-tools"])
         self.assertNotIn("setup undo *", fields["allowed-tools"])
         self.assertNotIn("cb.py *)", fields["allowed-tools"])
 
@@ -62,7 +64,7 @@ class SkillTests(unittest.TestCase):
 
     def test_every_command_and_option_mentioned_exists(self) -> None:
         commands = subcommands()
-        self.assertEqual(set(commands), {"scan", "pack", "verify", "resume", "setup", "session-start"})
+        self.assertEqual(set(commands), {"scan", "approve", "pack", "verify", "resume", "setup", "session-start"})
         matches = list(re.finditer(r"cb\.py (\w+)([^\n`]*)", ALL_TEXT))
         self.assertGreaterEqual(len(matches), 1)  # not a vacuous pass
         for match in matches:
@@ -94,7 +96,8 @@ class SkillTests(unittest.TestCase):
         self.addCleanup(project.cleanup)
         project.write("README.md", "# Demo\n\n## Goals\n- Ship it.\n")
         handoff = '{"next_steps": [{"text": "Test the export job’s retries.", "status": "fact"}]}'
-        result = project.run_cb("pack", "--root", ".", "--approve", "--handoff-json", handoff)
+        self.assertEqual(project.run_cb("approve", "--root", ".").returncode, 0)
+        result = project.run_cb("pack", "--root", ".", "--handoff-json", handoff)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(
             "Test the export job’s retries.",
@@ -115,7 +118,8 @@ class SkillTests(unittest.TestCase):
         project.write(
             ".context-bridge/handoff.json", '{"next_steps": [{"text": "Wire up the retries.", "status": "fact"}]}'
         )
-        result = project.run_cb("pack", "--root", ".", "--approve", "--handoff", ".context-bridge/handoff.json")
+        self.assertEqual(project.run_cb("approve", "--root", ".").returncode, 0)
+        result = project.run_cb("pack", "--root", ".", "--handoff", ".context-bridge/handoff.json")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn(
             "Wire up the retries.", (project.root / ".context-bridge" / "latest.md").read_text(encoding="utf-8")

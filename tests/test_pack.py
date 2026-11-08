@@ -237,10 +237,13 @@ class CliTests(unittest.TestCase):
     def test_cli_flow(self) -> None:
         result = self.project.run_cb("pack")
         self.assertEqual(result.returncode, 2)
-        self.assertIn("pack --approve", result.stderr)
+        self.assertIn("run 'approve'", result.stderr)
 
+        result = self.project.run_cb("approve")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("README.md", result.stdout)
         data = json.dumps({"next_steps": [{"text": "Write verify", "status": "fact"}]})
-        result = self.project.run_cb("pack", "--approve", "--handoff", "-", "--json", input_text=data)
+        result = self.project.run_cb("pack", "--handoff", "-", "--json", input_text=data)
         self.assertIn(result.returncode, (0, 1), result.stderr)
         summary = json.loads(result.stdout)
         self.assertTrue(summary["written"])
@@ -251,7 +254,7 @@ class CliTests(unittest.TestCase):
 
     def test_cli_names_the_reason_for_exit_code_1(self) -> None:
         # Regression (real session): pack exited 1 for a handoff warning but printed no reason.
-        self.project.run_cb("pack", "--approve")
+        self.project.run_cb("approve")
         handoff = json.dumps({"mood": "great", "next_steps": [{"text": "Write verify", "status": "fact"}]})
         result = self.project.run_cb("pack", "--handoff-json", handoff)
         self.assertEqual(result.returncode, 1, result.stderr)
@@ -259,15 +262,71 @@ class CliTests(unittest.TestCase):
 
     def test_cli_critical_loss_and_usage_errors(self) -> None:
         goals = [{"text": f"Goal {n}: requirement number {n} must be kept.", "status": "fact"} for n in range(50)]
-        result = self.project.run_cb("pack", "--approve", "--hard-budget", "--budget", "250", "--handoff", "-",
+        self.project.run_cb("approve")
+        result = self.project.run_cb("pack", "--hard-budget", "--budget", "250", "--handoff", "-",
                                      input_text=json.dumps({"goals": goals}))  # fmt: skip
         self.assertEqual(result.returncode, 3)
         self.assertIn("CRITICAL INFORMATION LOSS", result.stderr)
         self.assertEqual(self.project.run_cb("pack", "--budget", "50").returncode, 64)
         self.assertEqual(self.project.run_cb("pack", "--handoff", str(Path("missing.json"))).returncode, 64)
-        bad = self.project.run_cb("pack", "--approve", "--handoff", "-", input_text="not json")
+        bad = self.project.run_cb("pack", "--handoff", "-", input_text="not json")
         self.assertEqual(bad.returncode, 2)
         self.assertIn("not valid", bad.stderr)
+
+
+class ApproveCommandTests(unittest.TestCase):
+    """Approving is a separate command, so that the skill's pre-approved 'pack' can never approve."""
+
+    def setUp(self) -> None:
+        self.project = TempProject()
+        self.addCleanup(self.project.cleanup)
+        build_project(self.project)
+        self.consent = consent.consent_path(self.project.root, helpers.isolated_env(self.project.home))
+
+    def test_pack_refuses_the_old_approve_options_and_approves_nothing(self) -> None:
+        before = snapshot(self.project.base)
+        for args in (["--approve"], ["--approve-path", "README.md"], ["--approve", "--dry-run"]):
+            with self.subTest(args=args):
+                result = self.project.run_cb("pack", *args)
+                self.assertEqual(result.returncode, 64)
+                self.assertIn("run 'approve'", result.stderr)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
+        self.assertFalse(self.consent.exists())
+        self.assertNotIn("--approve", self.project.run_cb("pack", "--help").stdout)
+
+    def test_approve_writes_only_the_record_outside_the_project(self) -> None:
+        before = snapshot(self.project.root)
+        result = self.project.run_cb("approve", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        approved = json.loads(result.stdout)["approved"]
+        self.assertIn("README.md", approved)
+        self.assertIn("file_list", approved)
+        self.assertNotIn("src/app.py", approved)  # excluded files can never be approved
+        self.assertEqual(snapshot(self.project.root), before)
+        self.assertTrue(self.consent.is_file())
+        again = json.loads(self.project.run_cb("approve", "--json").stdout)
+        self.assertEqual(again["approved"], [])
+        self.assertIn("README.md", again["already_approved"])
+
+    def test_approve_one_path_and_refuse_sources_that_are_not_current(self) -> None:
+        self.assertEqual(self.project.run_cb("approve", "--path", "README.md").returncode, 0)
+        record = json.loads(self.consent.read_text(encoding="utf-8"))
+        self.assertEqual(list(record["files"]), ["README.md"])
+        for path in ("../outside.md", "src/app.py", "missing.md"):
+            with self.subTest(path=path):
+                result = self.project.run_cb("approve", "--path", path)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("not a current source", result.stderr)
+        self.assertEqual(json.loads(self.consent.read_text(encoding="utf-8"))["files"], record["files"])
+
+    def test_approve_in_a_denied_root_reads_and_writes_nothing(self) -> None:
+        config = self.project.home / ".config" / "context-bridge" / "config.toml"
+        config.parent.mkdir(parents=True)
+        config.write_text(f"[privacy]\ndeny_roots = [{helpers.toml_path(self.project.root)}]\n", encoding="utf-8")
+        result = self.project.run_cb("approve")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("denied", result.stderr)
+        self.assertFalse(self.consent.exists())
 
 
 if __name__ == "__main__":

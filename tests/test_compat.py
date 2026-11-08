@@ -186,7 +186,8 @@ class PermissionTests(unittest.TestCase):
                 mock.patch("context_bridge.compat.permissions_enforced", return_value=False),
                 contextlib.redirect_stdout(out),
             ):
-                code = cli.main(["pack", "--root", str(project.root), "--approve"])
+                self.assertEqual(cli.main(["approve", "--root", str(project.root)]), 0)
+                code = cli.main(["pack", "--root", str(project.root)])
         self.assertEqual(code, 1)
         self.assertIn("this file system ignores file permissions", out.getvalue())
 

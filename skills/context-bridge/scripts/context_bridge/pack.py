@@ -3,8 +3,10 @@
 Pipeline: scan (deny roots, allowlist, limits) -> consent (only approved sources) ->
 extract -> sanitise (invisible Unicode, redaction, injection flags, delimiters) ->
 deduplicate -> select within the token budget -> integrity hashes -> render ->
-store in ``<root>/.context-bridge/``. Nothing is written when any step fails, and
-``--dry-run`` writes nothing at all (not even consent).
+record its hash outside the project (``origin``) -> store in ``<root>/.context-bridge/``.
+Nothing is written when any step fails, and ``--dry-run`` writes nothing at all.
+Approving sources is a separate command (``approve.py``), so that the skill cannot
+pre-approve it.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from typing import Any
 
 from . import __version__, compat, injection, policy, redact, safepath, store
 from . import consent as consent_mod
+from . import origin as origin_mod
 from . import scan as scan_mod
 from .budget import (
     COVERAGE_PARTIAL,
@@ -94,6 +97,43 @@ def content_hash(pack: dict[str, Any]) -> str:
 def _names(values: list[str]) -> str:
     shown = ", ".join(values[:MAX_NAMES_IN_WARNING])
     return shown + (f" and {len(values) - MAX_NAMES_IN_WARNING} more" if len(values) > MAX_NAMES_IN_WARNING else "")
+
+
+def current_sources(report: scan_mod.ScanReport, git: object | None) -> tuple[list[str], list[str], list[str]]:
+    """(files, pseudo sources, structure paths) that a pack of this scan would use."""
+    files = [f.path for f in report.included]
+    structure_paths = sorted(
+        {f.path for f in report.included if f.origin == "project"}
+        | {p for reason in STRUCTURE_REASONS for p in report.excluded.get(reason, [])}
+    )
+    pseudo = ([consent_mod.PSEUDO_GIT] if git else []) + ([consent_mod.PSEUDO_FILE_LIST] if structure_paths else [])
+    return files, pseudo, structure_paths
+
+
+def load_for_approval(root: Path) -> consent_mod.Consent:
+    """The consent record to add approvals to; a corrupt one is replaced."""
+    try:
+        return consent_mod.load(root)
+    except consent_mod.ConsentError:
+        return consent_mod.Consent(path=consent_mod.consent_path(root), root=root)
+
+
+def grant(
+    record: consent_mod.Consent,
+    files: list[str],
+    pseudo: list[str],
+    *,
+    approve_all: bool,
+    paths: tuple[str, ...],
+    when: str,
+) -> None:
+    """Approve the given current sources (or all of them) in ``record``; nothing is saved here."""
+    unknown = [p for p in paths if p not in files and p not in pseudo]
+    if unknown:
+        raise consent_mod.ConsentError(f"not a current source, cannot approve: {_names(unknown)}")
+    record.approve([p for p in paths if p in files], [p for p in paths if p in pseudo], when)
+    if approve_all:
+        record.approve(files, pseudo, when)
 
 
 def extract_source(label: str, kind: str, text: str, source_id: str,
@@ -243,27 +283,16 @@ def build(
     git = gitinfo.collect(root) if report.vcs == "git" else None
 
     # --- consent -------------------------------------------------------------------
-    files = [f.path for f in report.included]
-    structure_paths = sorted(
-        {f.path for f in report.included if f.origin == "project"}
-        | {p for reason in STRUCTURE_REASONS for p in report.excluded.get(reason, [])}
-    )
-    pseudo = ([consent_mod.PSEUDO_GIT] if git else []) + ([consent_mod.PSEUDO_FILE_LIST] if structure_paths else [])
-    try:
-        record = consent_mod.load(root)
-    except consent_mod.ConsentError:
-        if not (approve or approve_paths):
-            raise
-        record = consent_mod.Consent(path=consent_mod.consent_path(root), root=root)
-    unknown = [p for p in approve_paths if p not in files and p not in pseudo]
-    if unknown:
-        raise consent_mod.ConsentError(f"not a current source, cannot approve: {_names(unknown)}")
-    record.approve([p for p in approve_paths if p in files], [p for p in approve_paths if p in pseudo], created_at)
-    if approve:
-        record.approve(files, pseudo, created_at)
+    # approve/approve_paths serve the Python API (tests, quality tools). On the command line,
+    # sources are approved only by the separate 'approve' command, which the skill cannot run
+    # without a prompt.
+    files, pseudo, structure_paths = current_sources(report, git)
+    record = load_for_approval(root) if (approve or approve_paths) else consent_mod.load(root)
+    grant(record, files, pseudo, approve_all=approve, paths=approve_paths, when=created_at)
     if not record.files and not record.pseudo:
         raise consent_mod.ConsentError(
-            "no sources are approved for this project yet. Review them with 'scan', then run 'pack --approve'."
+            "no sources are approved for this project yet. Review them with 'scan'; after the user "
+            "agrees, run 'approve'."
         )
     pending_files, pending_pseudo = record.pending(files, pseudo)
 
@@ -512,6 +541,7 @@ def build(
         if approve or approve_paths:
             consent_mod.save(record)
         json_bytes = (json.dumps(pack, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+        origin_mod.add(root, pack["pack_id"], json_bytes)  # first: a written pack is always one this folder knows
         paths = store.write_pack(root, pack["pack_id"], json_bytes, md.encode("utf-8"), keep)
 
     if loss:
@@ -539,14 +569,10 @@ def register(sub: argparse._SubParsersAction) -> None:
         metavar="JSON",
         help="session handoff as one JSON argument (a single plain command, so a skill can run it without a prompt)",
     )
-    p.add_argument("--approve", action="store_true", help="approve all current sources, including new ones")
-    p.add_argument(
-        "--approve-path",
-        action="append",
-        default=[],
-        metavar="SOURCE",
-        help="approve one source (repeatable): a relative path, '~/' label, 'git' or 'file_list'",
-    )
+    # Removed in 0.4: approving moved to the 'approve' command. Kept hidden, so that the old form
+    # fails with a pointer instead of approving anything.
+    p.add_argument("--approve", action="store_true", help=argparse.SUPPRESS)
+    p.add_argument("--approve-path", action="append", default=[], help=argparse.SUPPRESS)
     p.add_argument("--budget", type=int, default=DEFAULT_BUDGET, help=f"token budget (default {DEFAULT_BUDGET})")
     p.add_argument("--hard-budget", action="store_true", help="never exceed the budget, even for critical items")
     p.add_argument("--keep", type=int, default=store.DEFAULT_KEEP, help="packs to keep (default 10)")
@@ -590,11 +616,14 @@ def _summary(result: PackResult) -> dict[str, Any]:
 
 
 def run_cli(args: argparse.Namespace) -> int:
+    if args.approve or args.approve_path:
+        raise UsageError(
+            "'pack' no longer approves sources. Ask the user to approve the sources listed by 'scan', "
+            "then run 'approve' (it asks before it runs), and 'pack' again."
+        )
     result = build(
         args.root,
         handoff=args.handoff_json.encode("utf-8") if args.handoff_json is not None else _read_handoff(args.handoff),
-        approve=args.approve,
-        approve_paths=tuple(args.approve_path),
         budget=args.budget,
         hard_budget=args.hard_budget,
         keep=args.keep,
@@ -628,7 +657,7 @@ def run_cli(args: argparse.Namespace) -> int:
         if result.pending:
             lines.append(
                 f"New sources waiting for approval (not included): {_names(result.pending)}. "
-                "Run 'pack --approve' to include them."
+                "After the user agrees, run 'approve' (or 'approve --path <source>') and pack again."
             )
         smart = smart_summary(pack["extraction"])
         if smart:

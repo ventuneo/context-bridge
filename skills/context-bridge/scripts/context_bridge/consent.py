@@ -42,10 +42,14 @@ def state_dir(env: Mapping[str, str] | None = None) -> Path:
     return compat.state_home(env) / "context-bridge" / "consent"
 
 
+def root_key(root: Path) -> str:
+    """The file name for a project's records: the same folder under two spellings (case on
+    Windows) must find the same record."""
+    return hashlib.sha256(compat.path_key(root).encode("utf-8", "surrogateescape")).hexdigest()[:32]
+
+
 def consent_path(root: Path, env: Mapping[str, str] | None = None) -> Path:
-    # The same folder under two spellings (case on Windows) must find the same approval.
-    key = hashlib.sha256(compat.path_key(root).encode("utf-8", "surrogateescape")).hexdigest()[:32]
-    return state_dir(env) / f"{key}.json"
+    return state_dir(env) / f"{root_key(root)}.json"
 
 
 @dataclass
@@ -78,7 +82,7 @@ class Consent:
 
 def _string_map(value: object, name: str) -> dict[str, str]:
     if not isinstance(value, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in value.items()):
-        raise ConsentError(f"consent record is corrupt ('{name}'); approve again with --approve")
+        raise ConsentError(f"consent record is corrupt ('{name}'); approve again with 'approve'")
     return dict(value)
 
 
@@ -95,9 +99,9 @@ def load(root: Path) -> Consent:
     try:
         data = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ConsentError("consent record is corrupt; approve again with --approve") from exc
+        raise ConsentError("consent record is corrupt; approve again with 'approve'") from exc
     if len(raw) > MAX_CONSENT_BYTES or not isinstance(data, dict) or data.get("format") != CONSENT_FORMAT:
-        raise ConsentError("consent record is corrupt; approve again with --approve")
+        raise ConsentError("consent record is corrupt; approve again with 'approve'")
     record.files = _string_map(data.get("files", {}), "files")
     record.pseudo = _string_map(data.get("pseudo", {}), "pseudo")
     record.exists = True

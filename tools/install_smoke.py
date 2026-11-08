@@ -214,7 +214,8 @@ class Smoke:
 
         out = self.cb("scan", "--root", ".", cwd=project).stdout
         self.check("scan: four sources, code excluded", "Included: 4 files" in out and "src/shelf/cli.py" in out)
-        self.cb("pack", "--root", ".", "--approve", "--handoff-json", json.dumps(HANDOFF), cwd=project)
+        self.cb("approve", "--root", ".", cwd=project)
+        self.cb("pack", "--root", ".", "--handoff-json", json.dumps(HANDOFF), cwd=project)
         store = project / ".context-bridge"
         modes = (stat.S_IMODE(store.stat().st_mode), stat.S_IMODE((store / "latest.json").stat().st_mode))
         private = WINDOWS or modes == (0o700, 0o600)  # Windows has no permission bits; profile ACLs apply

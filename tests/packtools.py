@@ -12,6 +12,7 @@ from typing import Any
 import helpers  # noqa: F401  (puts the package on sys.path)
 from helpers import TempProject
 
+from context_bridge import origin
 from context_bridge import pack as pack_mod
 from context_bridge.render import render_markdown
 
@@ -52,16 +53,25 @@ def recompute(pack: dict[str, Any]) -> tuple[dict[str, Any], str]:
     return pack, md
 
 
-def tamper(root: Path, mutate: Callable[[dict[str, Any]], None], rehash: bool = True) -> dict[str, Any]:
+def tamper(
+    root: Path, mutate: Callable[[dict[str, Any]], None], rehash: bool = True, record: bool = True
+) -> dict[str, Any]:
+    """Change the latest pack in place.
+
+    ``record`` also lists the changed pack in the origin record outside the project, so that a
+    test reaches the integrity, provenance and safety checks behind the origin check. An attacker
+    who can only write into the project cannot do that; ``test_origin`` covers that case.
+    """
     pack = load_latest(root)
     mutate(pack)
     md = (root / STORE / "latest.md").read_text(encoding="utf-8")
     if rehash:
         pack, md = recompute(pack)
-    (root / STORE / "latest.json").write_text(
-        json.dumps(pack, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
-    )
+    raw = (json.dumps(pack, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    (root / STORE / "latest.json").write_bytes(raw)
     (root / STORE / "latest.md").write_text(md, encoding="utf-8", newline="\n")
+    if record and isinstance(pack.get("pack_id"), str):
+        origin.add(root, pack["pack_id"], raw)
     return pack
 
 
