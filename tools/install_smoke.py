@@ -114,16 +114,17 @@ class Smoke:
         if Path(source).is_dir():  # a working copy, possibly on a detached commit (as in CI)
             repo = source
             self.run("git", "init", "--quiet", "--bare", str(origin))
-            self.run("git", "-C", str(origin), "config", "receive.shallowUpdate", "true")
         else:  # a URL: its tags and branches are enough
             self.run("git", "clone", "--quiet", "--bare", source, str(origin))
             repo = str(origin)
         new = self.run("git", "-C", repo, "rev-parse", f"{ref}^{{commit}}").stdout.strip()
         parent = self.run("git", "-C", repo, "rev-parse", "--verify", "--quiet", f"{new}^", codes=(0, 1))
         old = parent.stdout.strip() or new  # without a parent (shallow source) the update is a no-op
-        if repo == source:
-            self.run("git", "-C", repo, "push", "--quiet", f"file://{origin}",
-                     f"{old}:refs/tags/{OLD_TAG}", f"{new}:refs/tags/{NEW_TAG}")  # fmt: skip
+        if repo == source:  # fetched into the throwaway repository; nothing is ever pushed
+            upload_pack = "git -c uploadpack.allowAnySHA1InWant=true upload-pack"  # the commit may have no ref
+            refspecs = (f"{old}:refs/tags/{OLD_TAG}", f"{new}:refs/tags/{NEW_TAG}")
+            url = f"file://{Path(source).resolve()}"
+            self.run("git", "-C", str(origin), "fetch", "--quiet", "--upload-pack", upload_pack, url, *refspecs)
         else:
             self.run("git", "-C", repo, "tag", OLD_TAG, old)
             self.run("git", "-C", repo, "tag", NEW_TAG, new)
