@@ -102,6 +102,13 @@ class Smoke:
             APPDATA=str(self.home / "AppData" / "Roaming"),
             LOCALAPPDATA=str(local),
             GIT_CONFIG_NOSYSTEM="1",
+            # no "git maintenance run --auto --detach" after fetch and commit: it would still be
+            # working in the clone while the uninstall step removes it
+            GIT_CONFIG_COUNT="2",
+            GIT_CONFIG_KEY_0="maintenance.auto",
+            GIT_CONFIG_VALUE_0="false",
+            GIT_CONFIG_KEY_1="gc.auto",
+            GIT_CONFIG_VALUE_1="0",
             GIT_CONFIG_GLOBAL=os.devnull,
             **IDENTITY,
         )

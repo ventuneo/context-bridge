@@ -226,7 +226,7 @@ class CliTests(unittest.TestCase):
             before = snapshot(self.project.base)
             result = self.project.run_cb("scan", "--json")
             self.assertEqual(result.returncode, 1, result.stderr)  # findings -> warnings
-            self.assertEqual(snapshot(self.project.base), before, mode)
+            self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [], mode)
             self.assertTrue(json.loads(result.stdout)["wrote_nothing"])
 
     def test_clean_project_exits_zero_and_root_option(self) -> None:

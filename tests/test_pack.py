@@ -67,7 +67,7 @@ class ConsentFlowTests(PackTestCase):
         before = snapshot(self.project.base)
         with self.assertRaises(ConsentError):
             self.build()
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
     def test_approved_pack_is_written_and_project_files_are_untouched(self) -> None:
         before = {k: v for k, v in snapshot(self.project.root).items()}
@@ -100,7 +100,7 @@ class ConsentFlowTests(PackTestCase):
         result = self.build(approve=True, dry_run=True)
         self.assertIsNone(result.paths)
         self.assertTrue(result.markdown.startswith("<!-- context-bridge pack"))
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
 
 class ContentTests(PackTestCase):
@@ -208,7 +208,7 @@ class SourceKindTests(PackTestCase):
         before = snapshot(self.project.base)
         with self.assertRaises(PolicyViolation):
             self.build(approve=True)
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
     def test_external_note_needs_user_permission_and_approval(self) -> None:
         notes = self.project.home / "notes"

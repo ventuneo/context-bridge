@@ -109,6 +109,17 @@ def make_tempdir() -> Path:
     return Path(tempfile.mkdtemp(prefix="cb-test-")).resolve()
 
 
+# Newer git versions start "git maintenance run --auto --detach" after a commit. That background
+# process can change .git while a test compares snapshots, and hold files that a cleanup removes.
+GIT_NO_BACKGROUND_WORK = {
+    "GIT_CONFIG_COUNT": "2",
+    "GIT_CONFIG_KEY_0": "maintenance.auto",
+    "GIT_CONFIG_VALUE_0": "false",
+    "GIT_CONFIG_KEY_1": "gc.auto",
+    "GIT_CONFIG_VALUE_1": "0",
+}
+
+
 def isolated_env(home: Path) -> dict[str, str]:
     """Environment for subprocesses: fake HOME, no user git config, no CB config."""
     env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "CONTEXT_BRIDGE_", "PYTHON"))}
@@ -125,6 +136,7 @@ def isolated_env(home: Path) -> dict[str, str]:
         GIT_AUTHOR_EMAIL="test@example.com",
         GIT_COMMITTER_NAME="Test",
         GIT_COMMITTER_EMAIL="test@example.com",
+        **GIT_NO_BACKGROUND_WORK,
     )
     return env
 
@@ -234,6 +246,11 @@ def hook_argv(hook: dict) -> list[str]:
     if "args" in hook:
         return [hook["command"], *hook["args"]]
     return ["sh", "-c", hook["command"]]
+
+
+def changed_paths(before: dict[str, tuple[int, int, bytes]], after: dict[str, tuple[int, int, bytes]]) -> list[str]:
+    """Paths added, removed or changed between two snapshots: a readable failure instead of a huge diff."""
+    return sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
 
 
 def snapshot(root: Path) -> dict[str, tuple[int, int, bytes]]:

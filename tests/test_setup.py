@@ -82,7 +82,7 @@ class InstallTests(SetupTestCase):
         plan = plan_install("project", "instructions", self.root, self.cfg())
         self.assertEqual(plan.action, "install")
         self.assertIn("+<!-- context-bridge:begin v1 -->", plan.diff())
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
     def test_install_appends_the_block_keeps_everything_else_and_backs_up(self) -> None:
         target = self.root / "CLAUDE.md"

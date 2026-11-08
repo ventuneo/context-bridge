@@ -201,7 +201,7 @@ class SafetyTests(HookTestCase):
         before = snapshot(self.project.base)
         for source in ("startup", "resume", "clear", "compact"):
             autoresume.digest(self.stdin(source))
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
 
 class BudgetAndPerformanceTests(unittest.TestCase):

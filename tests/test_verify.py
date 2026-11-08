@@ -309,7 +309,7 @@ class LossAndCliTests(VerifyTestCase):
         self.make_pack()
         before = snapshot(self.project.base)
         self.verify()
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
         cfg = self.project.home / ".config" / "context-bridge" / "config.toml"
         cfg.parent.mkdir(parents=True)
         cfg.write_text(f"[privacy]\ndeny_roots = [{helpers.toml_path(self.root)}]\n", encoding="utf-8", newline="\n")
