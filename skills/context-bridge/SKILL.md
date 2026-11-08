@@ -117,7 +117,8 @@ Use this when the user asks to set up Context Bridge, for example with `/context
    (`CLAUDE.md`, shared with the team) or `local` (`CLAUDE.local.md`, personal).
 3. Run `setup preview --target <scope> --root .` and show the user the complete diff and the
    warnings exactly as printed. The block is short and complements existing rules; its language
-   follows the target file (`--lang en|de` to choose).
+   follows the target file (`--lang en|de` to choose). With the auto-resume hook installed it leaves
+   out the resume line, which would load the context twice.
 4. Ask for an explicit yes to exactly this diff. For `global`, always ask separately, even if
    the user agreed to set up Context Bridge in general.
 5. Only then run `setup apply --target <scope> --confirm <preview id> --root .`. This command is

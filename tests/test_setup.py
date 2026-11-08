@@ -297,6 +297,34 @@ class HookTests(SetupTestCase):
         self.assertEqual(path.read_text(encoding="utf-8"), '{"hooks": [ broken')
 
 
+class HookAwareBlockTests(SetupTestCase):
+    """With the auto-resume hook installed, the CLAUDE.md block drops the redundant resume line."""
+
+    def bullets(self, plan: setup.Plan) -> list[str]:
+        added = plan.after.decode()[len(plan.before.decode()) :] if plan.before else plan.after.decode()
+        return [line for line in added.splitlines() if line.startswith("- ")]
+
+    def test_resume_line_follows_the_hook(self) -> None:
+        full = plan_install("global", "instructions", self.root, self.cfg())
+        self.assertEqual(len(self.bullets(full)), 2)
+        self.install("global", "hook")
+        short = plan_install("global", "instructions", self.root, self.cfg())
+        self.assertEqual(
+            self.bullets(short),
+            ["- Vor dem Ende einer längeren Arbeitssitzung anbieten, den Kontext mit `pack` zu sichern."],
+        )
+        self.assertTrue(any("resume line is left out" in w for w in short.warnings))
+        forced = plan_install("global", "instructions", self.root, self.cfg(), with_resume_line=True)
+        self.assertEqual(len(self.bullets(forced)), 2)
+
+    def test_short_block_is_idempotent_and_updates_when_the_hook_goes(self) -> None:
+        self.install("global", "hook")
+        self.install("global")
+        self.assertEqual(plan_install("global", "instructions", self.root, self.cfg()).action, "none")
+        self.undo("global", "hook")
+        self.assertEqual(plan_install("global", "instructions", self.root, self.cfg()).action, "update")
+
+
 class CliTests(unittest.TestCase):
     def setUp(self) -> None:
         self.project = TempProject()

@@ -253,9 +253,24 @@ def heading_level(text: str) -> int:
     return 1 if len(re.findall(r"^# \S", text, re.MULTILINE)) >= 2 else 2
 
 
-def render_block(lang: str, newline: str = "\n", level: int = 2) -> str:
+def render_block(lang: str, newline: str = "\n", level: int = 2, with_resume_line: bool = True) -> str:
     heading = "#" * level + " Context Bridge"
-    return newline.join([MARK_BEGIN, heading, *BLOCK_TEXT[lang], MARK_END]) + newline
+    lines = BLOCK_TEXT[lang] if with_resume_line else BLOCK_TEXT[lang][1:]
+    return newline.join([MARK_BEGIN, heading, *lines, MARK_END]) + newline
+
+
+def hook_installed(root: Path) -> bool:
+    """Is the auto-resume hook configured in any settings file that applies to ``root``?"""
+    for scope in SCOPES:
+        path = target_path(scope, "hook", root)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            entries = data.get("hooks", {}).get("SessionStart", [])
+            if any(_is_our_hook(h) for e in entries if isinstance(e, dict) for h in e.get("hooks", [])):
+                return True
+        except (OSError, ValueError, AttributeError):
+            continue
+    return False
 
 
 def hook_command(script: Path) -> str:
@@ -321,6 +336,7 @@ def plan_install(
     script: Path | None = None,
     allow_similar: bool = False,
     allow_both: bool = False,
+    with_resume_line: bool | None = None,
 ) -> Plan:
     plan, before = _base_plan(scope, kind, root, cfg, "install")
     if plan.blockers:
@@ -355,7 +371,13 @@ def plan_install(
         plan.blockers.append(f"{display(plan.path)} is not UTF-8 text")
         return plan
     newline = "\r\n" if "\r\n" in text else "\n"
-    block = render_block(lang or detect_language(text), newline, heading_level(text))
+    hook = hook_installed(root)
+    include_resume = (not hook) if with_resume_line is None else with_resume_line
+    block = render_block(lang or detect_language(text), newline, heading_level(text), include_resume)
+    if hook and not include_resume:
+        plan.warnings.append(
+            "the auto-resume hook is installed, so the resume line is left out (the context would load twice)"
+        )
     existing = BLOCK_RE.search(text)
     if existing:
         current = existing.group(0) if existing.group(0).endswith(("\n", "\r\n")) else existing.group(0) + newline
@@ -520,6 +542,9 @@ def register(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--confirm", metavar="ID", help="preview id to apply (required for apply and undo)")
     p.add_argument("--allow-similar", action="store_true", help="install although Context Bridge is mentioned already")
     p.add_argument("--allow-both", action="store_true", help="install although another scope has the block")
+    p.add_argument(
+        "--with-resume-line", action="store_true", help="keep the resume line although the hook is installed"
+    )
     p.add_argument("--root", default=".", help="project root (default: current directory)")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     p.set_defaults(handler=run_cli)
@@ -544,7 +569,14 @@ def _plan(args: argparse.Namespace, root: Path, cfg: Config) -> Plan:
     kind = "hook" if args.hook else "instructions"
     if args.action in ("preview", "apply"):
         return plan_install(
-            args.target, kind, root, cfg, lang=args.lang, allow_similar=args.allow_similar, allow_both=args.allow_both
+            args.target,
+            kind,
+            root,
+            cfg,
+            lang=args.lang,
+            allow_similar=args.allow_similar,
+            allow_both=args.allow_both,
+            with_resume_line=True if args.with_resume_line else None,
         )
     return plan_undo(args.target, kind, root, cfg)
 
