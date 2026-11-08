@@ -41,6 +41,7 @@ from .handoff import MAX_HANDOFF_BYTES
 from .handoff import parse as parse_handoff
 from .model import (
     CRITICAL,
+    FLAG_INFERRED,
     FLAG_INJECTION,
     FLAG_REDACTED,
     FLAG_TRUNCATED,
@@ -95,18 +96,100 @@ def _names(values: list[str]) -> str:
     return shown + (f" and {len(values) - MAX_NAMES_IN_WARNING} more" if len(values) > MAX_NAMES_IN_WARNING else "")
 
 
-def extract_source(label: str, kind: str, text: str, source_id: str) -> tuple[list[Item], str | None]:
+def extract_source(label: str, kind: str, text: str, source_id: str,
+                   outline: list[markdown.Region] | None = None) -> tuple[list[Item], str | None]:  # fmt: skip
     """Extract the items of one file source. Returns (items, project name or title).
 
     Deterministic: the same text always yields the same items, which lets ``verify``
-    re-derive every item of an unchanged source and detect forged content.
+    re-derive every item of an unchanged source and detect forged content. ``outline``
+    receives the sections of a Markdown file for the extraction report.
     """
     rank = 1 + policy.KIND_PRIORITY.get(kind, 7)
     if kind == "manifest":
         return project.manifest_items(label, text, source_id, rank)
     if kind == "changelog":
         return project.changelog_items(text, source_id, rank), None
-    return markdown.extract(text, source_id, kind, rank)
+    return markdown.extract(text, source_id, kind, rank, outline)
+
+
+REGION_COUNTS = ("extracted", "kept", "merged", "shortened", "left_out", "inferred", "unclassified")
+
+
+def extraction_report(outlines: dict[str, tuple[str, list[markdown.Region]]], items: list[Item],
+                      unique: list[Item], kept: list[Item], redact_pii: bool) -> dict[str, Any]:  # fmt: skip
+    """What every Markdown section of every file contributed: kept, merged into a duplicate,
+    shortened, left out for the budget, or skipped (boilerplate). Headings are file content, so
+    they are cleaned like every other text."""
+    unique_ids, kept_ids = {id(i) for i in unique}, {id(i) for i in kept}
+    sources = []
+    for source_id, (label, regions) in outlines.items():
+        counts: list[Counter[str]] = [Counter() for _ in regions]
+        for item in items:
+            if item.source != source_id or item.region is None:
+                continue
+            c = counts[item.region]
+            c["extracted"] += 1
+            c["inferred"] += FLAG_INFERRED in item.flags
+            c["unclassified"] += item.section == "unclassified"
+            if id(item) not in unique_ids:
+                c["merged"] += 1
+            elif id(item) in kept_ids:
+                c["kept"] += 1
+                c["shortened"] += FLAG_TRUNCATED in item.flags
+            else:
+                c["left_out"] += 1
+        rows = []
+        for region, c in zip(regions, counts, strict=True):
+            if region.heading is None and not c["extracted"] and not region.over_limit:
+                continue  # nothing before the first heading
+            rows.append(
+                {
+                    "heading": None if region.heading is None else clean_meta(region.heading, redact_pii, 120),
+                    "line": region.line,
+                    "as": "skipped" if region.skipped else (region.section or "unrecognised"),
+                    **{key: c[key] for key in REGION_COUNTS},
+                    "not_extracted": region.over_limit,
+                }
+            )
+        sources.append({"label": label, "regions": rows})
+    return {"sources": sources}
+
+
+def smart_summary(report: dict[str, Any]) -> str | None:
+    """One line about the text from unrecognised headings, or None if there was none."""
+    regions = [r for s in report["sources"] for r in s["regions"]]
+    smart = [r for r in regions if r["as"] == "unrecognised" or r["inferred"] or r["unclassified"]]
+    inferred, notes = sum(r["inferred"] for r in regions), sum(r["unclassified"] for r in regions)
+    skipped = sum(1 for r in regions if r["as"] == "skipped")
+    if not (inferred or notes or skipped):
+        return None
+    line = f"Smart extraction: {inferred} item(s) sorted by their wording and {notes} unclassified note(s)"
+    line += f" from {len(smart)} section(s) without a recognised heading"
+    if skipped:
+        line += f"; {skipped} boilerplate section(s) skipped"
+    return line + " (details: --sections)"
+
+
+def format_sections(report: dict[str, Any]) -> list[str]:
+    """The extraction report as text: one line per heading."""
+    out = ["Sections: what each heading contributed (kept · merged · shortened · left out)"]
+    for source in report["sources"]:
+        out.append(f"  {source['label']}")
+        for r in source["regions"]:
+            heading = r["heading"] if r["heading"] is not None else "(before the first heading)"
+            heading = heading if len(heading) <= 40 else heading[:39] + "…"
+            if r["as"] == "skipped":
+                detail = "skipped (boilerplate)"
+            elif not r["extracted"]:
+                detail = "nothing extracted"
+            else:
+                kinds = [f"{r[k]} {k}" for k in ("inferred", "unclassified") if r[k]]
+                detail = (f"{r['extracted']} item(s){' (' + ', '.join(kinds) + ')' if kinds else ''}: "
+                          f"{r['kept']} · {r['merged']} · {r['shortened']} · {r['left_out']}")  # fmt: skip
+            if r["not_extracted"]:
+                detail += f" · {r['not_extracted']} not extracted (item limit)"
+            out.append(f"    line {r['line']:<5} {heading:<40} {r['as']:<14} {detail}")
+    return out
 
 
 _CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
@@ -184,6 +267,7 @@ def build(
     sources: list[Source] = []
     items: list[Item] = []
     names: dict[str, str] = {}
+    outlines: dict[str, tuple[str, list[markdown.Region]]] = {}
 
     def new_source(**fields: Any) -> Source:
         source = Source(id=f"S{len(sources) + 1}", **fields)
@@ -195,7 +279,10 @@ def build(
             continue
         origin = ORIGIN_EXTERNAL if f.origin == "external" else ORIGIN_FILE
         src = new_source(origin=origin, label=f.path, kind=f.kind, sha256=f.sha256, size=f.size)
-        new_items, name = extract_source(f.path, f.kind, report.texts.get(f.path, ""), src.id)
+        outline: list[markdown.Region] = []
+        new_items, name = extract_source(f.path, f.kind, report.texts.get(f.path, ""), src.id, outline)
+        if outline:
+            outlines[src.id] = (f.path, outline)
         # scan already removed invisible characters, so pass its per-line findings on to the items:
         # a line that carried hidden or instruction-like content keeps its warning flag.
         suspicious = {finding["line"] for finding in f.injection if finding["severity"] in ("high", "medium")}
@@ -355,6 +442,7 @@ def build(
             "sources": [s.to_dict() for s in sources if s.id in referenced],
             "considered_sources": sorted(f.path for f in report.included if f.path not in pending_files),
             "sections": sections,
+            "extraction": extraction_report(outlines, items, unique, selection.kept, redact_pii),
             "redactions": {"count": sum(redactions.values()), "by_type": dict(sorted(redactions.items()))},
             "warnings": warnings,
         }
@@ -460,6 +548,8 @@ def register(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--keep", type=int, default=store.DEFAULT_KEEP, help="packs to keep (default 10)")
     p.add_argument("--dry-run", action="store_true", help="print the pack, write nothing (not even consent)")
     p.add_argument("--json", action="store_true", help="machine-readable output")
+    sections_help = "show what each Markdown heading contributed: kept, merged, shortened, left out, skipped"
+    p.add_argument("--sections", action="store_true", help=sections_help)
     p.set_defaults(handler=run_cli)
 
 
@@ -487,6 +577,7 @@ def _summary(result: PackResult) -> dict[str, Any]:
         "dropped": sum(d["items"] for d in pack["budget"]["dropped"]),
         "duplicates_removed": pack["budget"]["duplicates_removed"],
         "pending_sources": result.pending,
+        "extraction": pack["extraction"],
         "critical_loss": len(pack["critical_loss"]),
         "redactions": pack["redactions"],
         "warnings": pack["warnings"],
@@ -510,6 +601,8 @@ def run_cli(args: argparse.Namespace) -> int:
         out = pack if args.dry_run else _summary(result)
         json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
         sys.stdout.write("\n")
+    elif args.dry_run and args.sections:
+        print("\n".join([f"Coverage: {pack['coverage']['statement']}", *format_sections(pack["extraction"])]))
     elif args.dry_run:
         sys.stdout.write(result.markdown)
     else:
@@ -533,6 +626,9 @@ def run_cli(args: argparse.Namespace) -> int:
                 f"New sources waiting for approval (not included): {_names(result.pending)}. "
                 "Run 'pack --approve' to include them."
             )
+        smart = smart_summary(pack["extraction"])
+        if smart:
+            lines.append(smart)
         if pack["redactions"]["count"]:
             lines.append(
                 f"Redacted values: {pack['redactions']['count']} "
@@ -543,6 +639,8 @@ def run_cli(args: argparse.Namespace) -> int:
         lines += [
             f"{w['severity']}: {w['detail']}" for w in pack["warnings"] if w["code"] != "critical_information_loss"
         ]
+        if args.sections:
+            lines += format_sections(pack["extraction"])
         print("\n".join(lines))
     if pack["critical_loss"]:
         detail = next(w["detail"] for w in pack["warnings"] if w["code"] == "critical_information_loss")

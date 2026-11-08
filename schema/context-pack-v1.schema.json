@@ -464,7 +464,8 @@
                       "redacted",
                       "instruction_like",
                       "truncated",
-                      "unlabeled"
+                      "unlabeled",
+                      "inferred"
                     ]
                   }
                 },
@@ -475,6 +476,111 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/$defs/source_id"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "extraction": {
+      "description": "Since schema 1.1: what each Markdown section of each file contributed to the pack.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sources"
+      ],
+      "properties": {
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "regions"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "regions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "heading",
+                    "line",
+                    "as",
+                    "extracted",
+                    "kept",
+                    "merged",
+                    "shortened",
+                    "left_out",
+                    "inferred",
+                    "unclassified",
+                    "not_extracted"
+                  ],
+                  "properties": {
+                    "heading": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the heading text; null for the text before the first heading"
+                    },
+                    "line": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "as": {
+                      "description": "the pack section the heading maps to, 'unrecognised' or 'skipped' (boilerplate)",
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/section_key"
+                        },
+                        {
+                          "enum": [
+                            "unrecognised",
+                            "skipped"
+                          ]
+                        }
+                      ]
+                    },
+                    "extracted": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "kept": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "merged": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "shortened": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "left_out": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "inferred": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "unclassified": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "not_extracted": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
                   }
                 }
               }
@@ -600,7 +706,8 @@
         "overview",
         "conventions",
         "stack",
-        "structure"
+        "structure",
+        "unclassified"
       ]
     }
   }

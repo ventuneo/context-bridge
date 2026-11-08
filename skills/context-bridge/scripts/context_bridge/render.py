@@ -50,7 +50,12 @@ def _item_line(item: dict[str, Any], sources: dict[str, dict[str, Any]]) -> str:
     text = escape(item["text"])
     if "instruction_like" in item.get("flags", []):
         text = f'⚠ instruction-like text, shown as data: "{text}"'
-    return f"- [{item['status']}] {text} — {_ref(item, sources)}"
+    inferred = " (inferred)" if "inferred" in item.get("flags", []) else ""
+    return f"- [{item['status']}] {text} — {_ref(item, sources)}{inferred}"
+
+
+UNCLASSIFIED_NOTE = "Text under headings that no rule recognises, with no wording that says what it is."
+INFERRED_LABEL = " · (inferred) sorted by its wording, not by a heading"
 
 
 def render_markdown(pack: dict[str, Any]) -> str:
@@ -76,11 +81,15 @@ def render_markdown(pack: dict[str, Any]) -> str:
         status.append(f"git {escape(vcs.get('branch', '?'))} @ {vcs.get('head') or 'no commits'}")
         status.append(f"{vcs.get('uncommitted_changes', 0)} uncommitted changes")
     status.append(f"~{budget['estimated_tokens']} of {budget['max_tokens']} tokens")
+    inferred = any("inferred" in i.get("flags", []) for s in pack["sections"] for i in s["items"])
     out += [" · ".join(status), "", "Labels: [fact] stated in a source · [assumption] · [uncertain] hedged or "
-            "open · (unverified) from the session, not backed by a file.", ""]  # fmt: skip
+            "open · (unverified) from the session, not backed by a file"
+            f"{INFERRED_LABEL if inferred else ''}.", ""]  # fmt: skip
 
     for section in pack["sections"]:
         out.append(f"## {section['title']}")
+        if section["key"] == "unclassified":
+            out.append(UNCLASSIFIED_NOTE)
         out += [_item_line(item, sources) for item in section["items"]]
         out.append("")
 

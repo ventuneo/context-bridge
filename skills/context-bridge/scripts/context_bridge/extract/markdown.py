@@ -6,6 +6,12 @@ or ``Nächster Schritt:`` route a line directly. Unchecked task boxes become ope
 Shell code blocks under command-like headings become commands. HTML comments and YAML
 front matter are ignored, so hidden text never becomes an item.
 
+Smart extraction: text under a heading that no rule recognises (and text before the first
+heading) is not dropped. When its wording says what it is ("we decided", "TODO", "Ziel ist",
+a question), it goes to that section with the flag ``inferred``; otherwise it becomes an
+``unclassified`` note. Boilerplate sections (licence, credits, table of contents) are skipped.
+Every Markdown section of a file is recorded as a :class:`Region` for the extraction report.
+
 The status of an item is derived conservatively: assumption sections and
 ``Assumption:`` lines give ``assumption``; open-question sections, hedging words and
 questions give ``uncertain``; everything else is a ``fact`` about what the file says.
@@ -16,9 +22,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from ..model import ASSUMPTION, FACT, UNCERTAIN, Item
+from ..model import ASSUMPTION, FACT, FLAG_INFERRED, UNCERTAIN, Item
 
 MAX_ITEMS_PER_FILE = 200
+MAX_SMART_ITEMS_PER_FILE = 60  # items from unrecognised sections, so one long note cannot crowd out the rest
 MAX_COMMAND_LINES = 8
 
 
@@ -59,6 +66,53 @@ HEADING_SECTIONS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("stack", _rx(r"tech(?:nology)?(?: stack)?|stack|dependencies|technik|abhängigkeit(?:en)?")),
     ("overview", _rx(r"overview|about|introduction|description|summary|überblick|beschreibung|einleitung")),
 )
+# Boilerplate whose text is never packed; the extraction report lists such sections as skipped.
+_SKIP_HEADING = _rx(
+    r"licen[cs]es?|lizenz(?:en)?|credits?|acknowledge?ments?|danksagung(?:en)?|table of contents|contents|"
+    r"inhalt|inhaltsverzeichnis|sponsors?|badges?|changelog|release notes|änderungsprotokoll"
+)
+# Wording that sorts text from unrecognised sections. Deliberately narrow: a sentence has to say
+# what it is; everything else stays unclassified. Checked in this order.
+_CUES: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "decisions",
+        _rx(
+            r"we (?:have |’ve |'ve )?(?:decided|chosen|agreed)|decided (?:to|against|on)|we chose|we went with|"
+            r"the decision (?:is|was)|wir haben (?:uns )?(?:entschieden|beschlossen|geeinigt)|"
+            r"(?:wurde|ist|haben) (?:uns )?(?:entschieden|beschlossen)|entschieden,? dass|haben uns (?:für|gegen)|"
+            r"fiel die wahl auf"
+        ),
+    ),
+    (
+        "next_steps",
+        _rx(
+            r"next,? we|as a next step|the next step is|next up|als nächstes|als nächster schritt|"
+            r"im nächsten schritt|der nächste schritt ist"
+        ),  # fmt: skip
+    ),
+    (
+        "open_tasks",
+        _rx(
+            r"todo|to-do|fixme|we (?:still )?(?:need|have) to|still (?:needs?|has|have) to|must still|"
+            r"noch zu erledigen|muss noch|müssen noch|sollten? noch|wir müssen"
+        ),
+    ),
+    (
+        "goals",
+        _rx(
+            r"(?:the|our|main) (?:goal|aim|objective) (?:is|was)|we want to|we aim to|aims? to|"
+            r"(?:das|unser) ziel ist|ziel ist es|wir wollen|wir möchten"
+        ),  # fmt: skip
+    ),
+)
+_IMAGE_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+# A sentence ends at . ! or ? (and closing quotes) before a capital letter or digit, except after an
+# abbreviation (z. B., d. h., e.g., Nr.) or an ordinal number (1. Juli).
+_SENTENCE_END = re.compile(r"[.!?]+[\"”“»)\]]*\s+(?=[\"„“«(\[]?[A-ZÄÖÜ0-9])")
+_ABBREVIATIONS = frozenset(
+    "a b d e h i o s u z ab abs bzw ca dr etc evtl ff ggf inkl mr mrs ms nr vgl vs bspw usw e.g i.e z.b d.h u.a".split()
+)
+NOTE_LINE = 60  # paragraphs with a shorter line (except the last) are notes: one statement per line
 _ASSUMPTION_HEADING = _rx(r"assumptions?|annahmen?")
 _UNCERTAIN_HEADING = _rx(
     r"open questions?|questions?|unknowns?|risks?|unsicheres|unsicherheit(?:en)?|offene fragen|fragen?|risiko|risiken|"
@@ -117,6 +171,35 @@ def classify_heading(text: str) -> tuple[str | None, str | None]:
     return None, status
 
 
+def infer_section(text: str) -> str | None:
+    """The section that the wording of ``text`` names (a decision, a task …), or None."""
+    for key, pattern in _CUES:
+        if pattern.search(text):
+            return key
+    return "open_questions" if text.rstrip().endswith("?") else None
+
+
+def sentences(text: str) -> list[tuple[int, int]]:
+    """Spans (start, end) of the sentences of ``text``."""
+    spans: list[tuple[int, int]] = []
+    start = 0
+    for match in _SENTENCE_END.finditer(text):
+        before = text[start : match.start()].split()
+        word = before[-1].casefold() if before else ""
+        if word in _ABBREVIATIONS or (word.isdigit() and len(word) <= 2):
+            continue
+        spans.append((start, match.start() + len(match.group(0).rstrip())))
+        start = match.end()
+    if text[start:].strip():
+        spans.append((start, len(text.rstrip())))
+    return spans
+
+
+def _has_words(text: str) -> bool:
+    """Real text, not a badge row, a rule (---) or a stray symbol."""
+    return sum(ch.isalpha() for ch in _IMAGE_RE.sub("", text)) >= 3
+
+
 def status_for(text: str, inherited: str | None) -> str:
     if _ASSUMPTION_PREFIX.match(text):
         return ASSUMPTION
@@ -144,6 +227,18 @@ def _strip_hidden(text: str) -> str:
 class _Context:
     section: str | None
     status: str | None
+    skipped: bool = False
+
+
+@dataclass
+class Region:
+    """One Markdown section of a file: a heading with its text, or the text before the first heading."""
+
+    heading: str | None  # None: before the first heading
+    line: int
+    section: str | None  # the pack section its heading maps to (also inherited from a parent heading)
+    skipped: bool = False  # boilerplate such as a licence: never packed
+    over_limit: int = 0  # blocks not extracted because the file reached an item limit
 
 
 @dataclass
@@ -165,13 +260,20 @@ class _Extractor:
         self.title: tuple[str, int] | None = None
         self.seen_subheading = False
         self.overview_done = False
+        self.regions: list[Region] = [Region(None, 1, None)]
+        self.smart = 0
 
     @property
     def context(self) -> _Context:
         return self.stack[-1][1] if self.stack else _Context(None, None)
 
-    def add(self, section: str, text: str, status: str, extractor: str, start: int, end: int) -> None:
-        if len(self.items) >= MAX_ITEMS_PER_FILE or not text:
+    def add(self, section: str, text: str, status: str, extractor: str, start: int, end: int,
+            flags: tuple[str, ...] = (), region: int | None = None) -> None:  # fmt: skip
+        region = len(self.regions) - 1 if region is None else region
+        if not text:
+            return
+        if len(self.items) >= MAX_ITEMS_PER_FILE:
+            self.regions[region].over_limit += 1
             return
         self.items.append(
             Item(
@@ -181,10 +283,63 @@ class _Extractor:
                 source=self.source_id,
                 extractor=extractor,
                 lines=(start, end),
+                flags=list(flags),
                 order=len(self.items),
                 origin_rank=self.origin_rank,
+                region=region,
             )
         )
+
+    def smart_item(self, text: str, ctx: _Context, start: int, end: int) -> None:
+        """One statement that no heading sorts: by its wording, or as an unclassified note."""
+        if ctx.skipped or not _has_words(text):
+            return
+        if self.smart >= MAX_SMART_ITEMS_PER_FILE:
+            self.regions[-1].over_limit += 1
+            return
+        self.smart += 1
+        section = infer_section(text)
+        if section:
+            self.add(section, text, status_for(text, ctx.status), "markdown.cue", start, end, (FLAG_INFERRED,))
+        else:
+            self.add("unclassified", text, status_for(text, ctx.status), "markdown.unclassified", start, end)
+
+    def smart_paragraph(self, block: _Block, ctx: _Context) -> None:
+        """Split a paragraph without a recognised heading into statements and sort each one.
+
+        Short lines are notes, one statement per line; wrapped prose is split into sentences.
+        Neighbouring statements that no wording sorts stay together as one unclassified note.
+        """
+        parts = [(block.start + i, " ".join(_QUOTE_RE.sub("", line).split())) for i, line in enumerate(block.lines)]
+        parts = [(n, text) for n, text in parts if text]
+        if len(parts) > 1 and any(len(text) < NOTE_LINE for _n, text in parts[:-1]):
+            units = [[(n, text)] for n, text in parts]
+        else:
+            units = [parts]
+        statements: list[tuple[str, int, int]] = []
+        for unit in units:
+            joined, starts = "", []
+            for n, text in unit:
+                starts.append((len(joined) + (1 if joined else 0), n))
+                joined = f"{joined} {text}" if joined else text
+            for a, b in sentences(joined):
+                first = max(n for offset, n in starts if offset <= a)
+                last = max(n for offset, n in starts if offset < b)
+                statements.append((joined[a:b].strip(), first, last))
+        pending: list[tuple[str, int, int]] = []
+
+        def flush_pending() -> None:
+            if pending:
+                self.smart_item(" ".join(s for s, _a, _b in pending), ctx, pending[0][1], pending[-1][2])
+                pending.clear()
+
+        for text, first, last in statements:
+            if infer_section(text):
+                flush_pending()
+                self.smart_item(text, ctx, first, last)
+            else:
+                pending.append((text, first, last))
+        flush_pending()
 
     def heading(self, level: int, text: str, lineno: int) -> None:
         if level == 1 and self.title is None:
@@ -195,7 +350,10 @@ class _Extractor:
             self.stack.pop()
         section, status = classify_heading(text)
         parent = self.context
-        self.stack.append((level, _Context(section or parent.section, status or parent.status)))
+        skipped = parent.skipped or (section is None and parent.section is None and bool(_SKIP_HEADING.search(text)))
+        ctx = _Context(section or parent.section, status or parent.status, skipped)
+        self.stack.append((level, ctx))
+        self.regions.append(Region(text, lineno, ctx.section, ctx.skipped))
 
     def block(self, block: _Block) -> None:
         text = " ".join(_QUOTE_RE.sub("", part).strip() for part in block.lines)
@@ -234,12 +392,18 @@ class _Extractor:
         ):
             self.overview_done = True
             self.add("overview", text, status_for(text, None), "markdown.first_paragraph", block.start, block.end)
+        elif block.kind == "para":
+            self.smart_paragraph(block, ctx)
+        else:
+            self.smart_item(text, ctx, block.start, block.end)
 
     def table_row(self, cells: list[str], lineno: int) -> None:
         ctx = self.context
         text = " · ".join(c for c in (cell.strip() for cell in cells) if c)
         if ctx.section and text:
             self.add(ctx.section, text, status_for(text, ctx.status), "markdown.table_row", lineno, lineno)
+        elif text:
+            self.smart_item(text, ctx, lineno, lineno)
 
     def code(self, lang: str, lines: list[tuple[int, str]]) -> None:
         if self.context.section != "commands" or lang.casefold() not in _SHELL_LANGS:
@@ -252,8 +416,12 @@ class _Extractor:
                 taken += 1
 
 
-def extract(text: str, source_id: str, file_kind: str, origin_rank: int) -> tuple[list[Item], str | None]:
-    """Extract items from Markdown ``text``. Returns (items, H1 title or None)."""
+def extract(text: str, source_id: str, file_kind: str, origin_rank: int,
+            outline: list[Region] | None = None) -> tuple[list[Item], str | None]:  # fmt: skip
+    """Extract items from Markdown ``text``. Returns (items, H1 title or None).
+
+    ``outline``, if given, receives the file's sections; ``Item.region`` indexes into it.
+    """
     ex = _Extractor(source_id, file_kind, origin_rank)
     lines = _strip_hidden(text).splitlines()
     block: _Block | None = None
@@ -306,5 +474,9 @@ def extract(text: str, source_id: str, file_kind: str, origin_rank: int) -> tupl
 
     title = ex.title[0] if ex.title else None
     if file_kind == "decisions" and ex.title and not any(it.section == "decisions" for it in ex.items):
-        ex.add("decisions", ex.title[0], status_for(ex.title[0], None), "markdown.title", ex.title[1], ex.title[1])
+        region = next((i for i, r in enumerate(ex.regions) if r.heading is not None and r.line == ex.title[1]), 0)
+        ex.add("decisions", ex.title[0], status_for(ex.title[0], None), "markdown.title", ex.title[1], ex.title[1],
+               region=region)  # fmt: skip
+    if outline is not None:
+        outline.extend(ex.regions)
     return ex.items, title
