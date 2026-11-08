@@ -53,6 +53,15 @@ class HandoffTests(unittest.TestCase):
         _items, warnings, _ = self.parse({"mood": "great"})
         self.assertEqual(warnings, ["handoff: unknown field 'mood' ignored"])
 
+    def test_state_is_the_list_form_of_status(self) -> None:
+        # Regression (real session): a model wrote "state": [...] after the pack section name, and the
+        # entry was dropped with a warning.
+        items, warnings, _ = self.parse({"status": {"text": "Import works.", "status": "fact"},
+                                         "state": [{"text": "Tests are green.", "status": "fact"}]})  # fmt: skip
+        self.assertEqual(warnings, [])
+        self.assertEqual([(i.section, i.text) for i in items],
+                         [("state", "Status: Import works."), ("state", "Status: Tests are green.")])  # fmt: skip
+
     def test_invalid_input_is_rejected(self) -> None:
         bad = [
             b"not json",

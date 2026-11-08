@@ -40,6 +40,7 @@ FIELDS: dict[str, tuple[str, bool, str]] = {
     "goal": ("goals", True, ""),
     "goals": ("goals", False, ""),
     "status": ("state", True, "Status: "),
+    "state": ("state", False, "Status: "),  # list form; the pack section is called state
     "done": ("state", False, "Done: "),
     "constraints": ("constraints", False, ""),
     "decisions": ("decisions", False, ""),

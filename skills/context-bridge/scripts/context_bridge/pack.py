@@ -530,10 +530,10 @@ def run_cli(args: argparse.Namespace) -> int:
                 f"Redacted values: {pack['redactions']['count']} "
                 f"({', '.join(f'{k} {v}' for k, v in pack['redactions']['by_type'].items())})"
             )
+        # Every warning is shown, so that exit code 1 always comes with its reason; critical loss
+        # is reported on stderr below.
         lines += [
-            f"{w['severity']}: {w['detail']}"
-            for w in pack["warnings"]
-            if w["code"] in ("instruction_like_text", "budget_exceeded_to_protect_critical")
+            f"{w['severity']}: {w['detail']}" for w in pack["warnings"] if w["code"] != "critical_information_loss"
         ]
         print("\n".join(lines))
     if pack["critical_loss"]:

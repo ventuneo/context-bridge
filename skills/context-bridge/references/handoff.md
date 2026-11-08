@@ -14,6 +14,7 @@ prefer objects.
 |---|---|---|
 | `goal` | one entry: the goal of the current work | Goals |
 | `status` | one entry: where the work stands | Current state |
+| `state` | list: the same as `status`, for several statements | Current state |
 | `done` | list: what was finished in this session | Current state |
 | `constraints` | list: rules or limits agreed in the session | Constraints |
 | `decisions` | list: `text`, `status` and optionally `reason` | Decisions |

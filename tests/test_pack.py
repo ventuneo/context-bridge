@@ -245,6 +245,14 @@ class CliTests(unittest.TestCase):
         result = self.project.run_cb("pack", "--dry-run")
         self.assertTrue(result.stdout.startswith("<!-- context-bridge pack"))
 
+    def test_cli_names_the_reason_for_exit_code_1(self) -> None:
+        # Regression (real session): pack exited 1 for a handoff warning but printed no reason.
+        self.project.run_cb("pack", "--approve")
+        handoff = json.dumps({"mood": "great", "next_steps": [{"text": "Write verify", "status": "fact"}]})
+        result = self.project.run_cb("pack", "--handoff-json", handoff)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("warning: handoff: unknown field 'mood' ignored", result.stdout)
+
     def test_cli_critical_loss_and_usage_errors(self) -> None:
         goals = [{"text": f"Goal {n}: requirement number {n} must be kept.", "status": "fact"} for n in range(50)]
         result = self.project.run_cb("pack", "--approve", "--hard-budget", "--budget", "250", "--handoff", "-",
