@@ -20,7 +20,7 @@ import helpers
 import packtools
 from helpers import TempProject
 
-from context_bridge import cli, compat, consent, policy, safepath, scan
+from context_bridge import cli, compat, consent, pack, policy, safepath, scan, verify
 from context_bridge.config import user_config_path
 from context_bridge.errors import UnsafePathError
 
@@ -189,6 +189,32 @@ class PermissionTests(unittest.TestCase):
                 code = cli.main(["pack", "--root", str(project.root), "--approve"])
         self.assertEqual(code, 1)
         self.assertIn("this file system ignores file permissions", out.getvalue())
+
+
+class LineEndingTests(unittest.TestCase):
+    """Windows checkouts often have CRLF line endings (git with core.autocrlf=true)."""
+
+    @staticmethod
+    def build(newline: bytes) -> tuple[list[tuple[str, list[str]]], int]:
+        with (
+            TempProject() as project,
+            helpers.patched_home(project.home),
+            mock.patch.dict(os.environ, packtools.GIT_ENV),
+        ):
+            packtools.make_project(project)
+            for path in [p for p in project.root.rglob("*") if p.is_file()]:
+                path.write_bytes(path.read_bytes().replace(b"\n", newline))
+            result = pack.build(project.root, approve=True)
+            code = verify.verify(project.root).exit_code
+        return [(s["key"], [i["text"] for i in s["items"]]) for s in result.pack["sections"]], code
+
+    def test_crlf_sources_give_the_same_items_and_the_pack_verifies(self) -> None:
+        lf, lf_code = self.build(b"\n")
+        crlf, crlf_code = self.build(b"\r\n")
+        self.assertTrue(lf)
+        self.assertEqual(crlf, lf)
+        self.assertEqual((lf_code, crlf_code), (0, 0))
+        self.assertFalse(any("\r" in text for _, texts in crlf for text in texts))
 
 
 class OutputTests(unittest.TestCase):

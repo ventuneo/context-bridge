@@ -8,7 +8,6 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -23,7 +22,7 @@ import packtools
 from helpers import REPO_ROOT, TempProject, isolated_env, snapshot
 from packtools import item, tamper
 
-from context_bridge import autoresume, pack, verify
+from context_bridge import autoresume, pack, setup, verify
 from context_bridge.tokens import upper_bound
 
 if "cb_quality_evaluate" in sys.modules:
@@ -272,12 +271,10 @@ class InstalledHookTests(unittest.TestCase):
 
     def run_hook(self, source: str) -> subprocess.CompletedProcess:
         data = json.loads(self.settings.read_text(encoding="utf-8"))
-        ours = [
-            h["command"] for e in data["hooks"]["SessionStart"] for h in e["hooks"] if "session-start" in h["command"]
-        ]
+        ours = [h for e in data["hooks"]["SessionStart"] for h in e["hooks"] if setup._is_our_hook(h)]
         self.assertEqual(len(ours), 1)
         stdin = json.dumps({"cwd": str(self.project.root), "source": source, "hook_event_name": "SessionStart"})
-        return subprocess.run(shlex.split(ours[0]), input=stdin, capture_output=True, text=True,
+        return subprocess.run(helpers.hook_argv(ours[0]), input=stdin, capture_output=True, text=True, encoding="utf-8",
                               cwd=self.project.root, env=isolated_env(self.project.home), timeout=30)  # fmt: skip
 
     def test_install_run_repeat_and_uninstall(self) -> None:
@@ -322,10 +319,10 @@ class InstalledHookTests(unittest.TestCase):
         preview = json.loads(self.setup_cmd("preview").stdout)
         self.assertEqual(preview["action"], "update")
         self.assertEqual(self.setup_cmd("apply", preview["preview_id"]).returncode, 0)
-        commands = [
-            h["command"] for e in json.loads(self.settings.read_text())["hooks"]["SessionStart"] for h in e["hooks"]
-        ]
-        self.assertEqual(sum("session-start" in c for c in commands), 1)
+        hooks = [h for e in json.loads(self.settings.read_text(encoding="utf-8"))["hooks"]["SessionStart"]
+                 for h in e["hooks"]]  # fmt: skip
+        self.assertEqual(sum(setup._is_our_hook(h) for h in hooks), 1)  # exec form on Windows, shell form elsewhere
+        commands = [h["command"] for h in hooks]
         self.assertIn("keep-me.sh", commands)
         self.assertIn("other.sh", commands)
 

@@ -145,7 +145,9 @@ class IdempotencyTests(SetupTestCase):
 
     def test_a_different_block_is_updated_in_place(self) -> None:
         self.install(lang="en")
-        (self.root / "CLAUDE.md").write_text((self.root / "CLAUDE.md").read_text() + "\n- Added later.\n")
+        (self.root / "CLAUDE.md").write_text(
+            (self.root / "CLAUDE.md").read_text(encoding="utf-8") + "\n- Added later.\n", encoding="utf-8"
+        )
         plan = self.install(lang="de")
         self.assertEqual(plan.action, "update")
         text = (self.root / "CLAUDE.md").read_text(encoding="utf-8")
@@ -176,11 +178,11 @@ class ConsentTests(SetupTestCase):
         plan = plan_install("project", "instructions", self.root, self.cfg())
         with self.assertRaises(SetupError):
             apply(plan, "000000000000")
-        (self.root / "CLAUDE.md").write_text(ENGLISH_RULES + "- Edited after the preview.\n")
+        (self.root / "CLAUDE.md").write_text(ENGLISH_RULES + "- Edited after the preview.\n", encoding="utf-8")
         fresh = plan_install("project", "instructions", self.root, self.cfg())
         with self.assertRaises(SetupError):
             apply(fresh, plan.id)  # the id of the old preview no longer matches
-        self.assertNotIn("context-bridge:begin", (self.root / "CLAUDE.md").read_text())
+        self.assertNotIn("context-bridge:begin", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
 
 
 class UndoTests(SetupTestCase):
@@ -194,7 +196,7 @@ class UndoTests(SetupTestCase):
     def test_undo_after_an_edit_removes_only_the_block(self) -> None:
         self.install()
         path = self.root / "CLAUDE.md"
-        path.write_text(path.read_text() + "\n- My own new rule.\n", encoding="utf-8")
+        path.write_text(path.read_text(encoding="utf-8") + "\n- My own new rule.\n", encoding="utf-8")
         plan = self.undo()
         self.assertEqual(plan.action, "undo-remove")
         text = path.read_text(encoding="utf-8")
@@ -277,8 +279,9 @@ class HookTests(SetupTestCase):
         self.assertEqual(data["hooks"]["SessionEnd"], self.SETTINGS["hooks"]["SessionEnd"])
         self.assertEqual((data["permissions"], data["theme"]), (self.SETTINGS["permissions"], "dark"))
         start = data["hooks"]["SessionStart"]
-        command = setup.hook_command(Path("/opt/cb/scripts/cb.py"))  # the Windows form differs, see HookCommandTests
-        self.assertEqual(start, [{"hooks": [{"type": "command", "command": command, "timeout": 10}]}])
+        entry = setup.hook_entry(Path("/opt/cb/scripts/cb.py"))  # exec form on Windows, see HookEntryTests
+        self.assertEqual(start, [{"hooks": [entry]}])
+        self.assertEqual(entry["timeout"], 10)
         again = plan_install("global", "hook", self.root, self.cfg(), script=Path("/opt/cb/scripts/cb.py"))
         self.assertEqual(again.action, "none")
         self.undo("global", "hook")
@@ -303,32 +306,50 @@ class HookTests(SetupTestCase):
         self.assertEqual(path.read_text(encoding="utf-8"), '{"hooks": [ broken')
 
 
-class HookCommandTests(unittest.TestCase):
-    """The SessionStart command line on POSIX systems and on Windows (simulated)."""
+class HookEntryTests(unittest.TestCase):
+    """The SessionStart hook on POSIX systems and on Windows (simulated)."""
 
-    def test_posix_form_is_unchanged_for_plain_paths_and_quoted_otherwise(self) -> None:
-        plain = setup.hook_command("/opt/cb/scripts/cb.py", windows=False)
-        self.assertEqual(plain, "python3 -I /opt/cb/scripts/cb.py session-start")  # installs from 0.1 stay current
-        spaced = setup.hook_command("/Users/alice/My Skills/cb.py", windows=False)
+    WINDOWS_SCRIPT = r"C:\Users\alice\.claude\skills\context-bridge\scripts\cb.py"
+
+    def test_posix_shell_form_is_unchanged_for_plain_paths_and_quoted_otherwise(self) -> None:
+        plain = setup.hook_entry("/opt/cb/scripts/cb.py", windows=False)
+        self.assertEqual(plain, {"type": "command", "command": "python3 -I /opt/cb/scripts/cb.py session-start",
+                                 "timeout": 10})  # fmt: skip  # installs from 0.1 stay current
+        spaced = setup.hook_entry("/Users/alice/My Skills/cb.py", windows=False)["command"]
         self.assertEqual(shlex.split(spaced), ["python3", "-I", "/Users/alice/My Skills/cb.py", "session-start"])
 
-    def test_windows_form_uses_the_running_python_and_forward_slashes(self) -> None:
-        command = setup.hook_command(r"C:\Users\alice\.claude\skills\context-bridge\scripts\cb.py", windows=True,
-                                     executable=r"C:\Program Files\Python313\python.exe")  # fmt: skip
-        self.assertEqual(command, '"C:/Program Files/Python313/python.exe" -I '
-                         '"C:/Users/alice/.claude/skills/context-bridge/scripts/cb.py" session-start')  # fmt: skip
-        self.assertEqual(shlex.split(command), ["C:/Program Files/Python313/python.exe", "-I",
-                                                "C:/Users/alice/.claude/skills/context-bridge/scripts/cb.py", "session-start"])  # fmt: skip
-        self.assertTrue(setup._is_our_hook({"type": "command", "command": command}))
+    def test_windows_exec_form_starts_the_running_python_without_a_shell(self) -> None:
+        entry = setup.hook_entry(self.WINDOWS_SCRIPT, windows=True, executable=r"C:\Program Files\Python313\python.exe")
+        self.assertEqual(entry, {"type": "command", "command": r"C:\Program Files\Python313\python.exe",
+                                 "args": ["-I", self.WINDOWS_SCRIPT, "session-start"], "timeout": 10})  # fmt: skip
+        self.assertTrue(setup._is_our_hook(entry))
+        forward = {
+            **entry,
+            "args": ["-I", "C:/Users/alice/.claude/skills/context-bridge/scripts/cb.py", "session-start"],
+        }
+        self.assertTrue(setup._is_our_hook(forward))
 
-    def test_paths_the_shell_would_expand_block_the_windows_hook(self) -> None:
+    def test_other_hooks_are_not_mistaken_for_ours(self) -> None:
+        for hook in ({"type": "command", "command": "python", "args": ["-I", "other.py", "session-start"]},
+                     {"type": "command", "command": "python", "args": ["session-start"]},
+                     {"type": "command", "command": "python", "args": "cb.py session-start"},
+                     {"type": "command", "command": "notify.sh session-start"}, "cb.py session-start"):  # fmt: skip
+            with self.subTest(hook=hook):
+                self.assertFalse(setup._is_our_hook(hook))
+
+    def test_shell_characters_are_harmless_but_placeholders_block_the_hook(self) -> None:
         for script in (r"C:\Users\alice\$skills\cb.py", r"C:\Users\alice\a%PATH%\cb.py", r"C:\Users\alice\a`b\cb.py"):
-            with self.subTest(script=script):
-                self.assertIn("install the hook by hand", setup.hook_command_problem(windows=True, script=script) or "")
-        self.assertIsNone(
-            setup.hook_command_problem(windows=True, script=r"C:\Users\alice\cb.py", executable="C:/py/python.exe")
-        )
-        self.assertIsNone(setup.hook_command_problem(windows=False, script="/opt/$weird/cb.py"))
+            with self.subTest(script=script):  # exec form: no shell expands anything
+                self.assertIsNone(
+                    setup.hook_command_problem(windows=True, script=script, executable="C:/py/python.exe")
+                )
+        self.assertIsNone(setup.hook_command_problem(windows=False, script="/opt/$weird/cb.py"))  # quoted by shlex
+        for windows, script, executable in ((True, r"C:\x\${CLAUDE_PROJECT_DIR}\cb.py", "C:/py/python.exe"),
+                                            (True, r"C:\x\cb.py", r"C:\${HOME}\python.exe"),
+                                            (False, "/opt/${CLAUDE_PROJECT_DIR}/cb.py", None)):  # fmt: skip
+            with self.subTest(script=script, executable=executable):
+                problem = setup.hook_command_problem(windows=windows, script=script, executable=executable)
+                self.assertIn("install the hook by hand", problem or "")
 
 
 class HookAwareBlockTests(SetupTestCase):

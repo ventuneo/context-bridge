@@ -50,7 +50,7 @@ class VersionTests(unittest.TestCase):
         self.assertEqual(project["requires-python"], ">=3.11")
         ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn('python: ["3.11", "3.12", "3.13", "3.14", "3.15"]', ci)
-        self.assertIn("os: [ubuntu-latest, macos-latest]", ci)
+        self.assertIn("os: [ubuntu-latest, macos-latest, windows-latest]", ci)
 
 
 class CommunityFileTests(unittest.TestCase):
@@ -115,7 +115,10 @@ class DemoProjectTests(unittest.TestCase):
         self.addCleanup(project.cleanup)
         for path in (REPO_ROOT / "examples" / "demo-project").rglob("*"):
             if path.is_file():
-                project.write(str(path.relative_to(REPO_ROOT / "examples" / "demo-project")), path.read_text())
+                project.write(
+                    path.relative_to(REPO_ROOT / "examples" / "demo-project").as_posix(),
+                    path.read_text(encoding="utf-8"),
+                )
         with helpers.patched_home(project.home), mock.patch.dict(os.environ, packtools.GIT_ENV):
             project.git_init()
             handoff = {"next_steps": [{"text": "Write the reminder command and its tests.", "status": "fact"}]}

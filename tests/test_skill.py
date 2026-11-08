@@ -93,7 +93,10 @@ class SkillTests(unittest.TestCase):
         handoff = '{"next_steps": [{"text": "Test the export job’s retries.", "status": "fact"}]}'
         result = project.run_cb("pack", "--root", ".", "--approve", "--handoff-json", handoff)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Test the export job’s retries.", (project.root / ".context-bridge" / "latest.md").read_text())
+        self.assertIn(
+            "Test the export job’s retries.",
+            (project.root / ".context-bridge" / "latest.md").read_text(encoding="utf-8"),
+        )
         both = project.run_cb("pack", "--root", ".", "--handoff", "-", "--handoff-json", "{}")
         self.assertEqual(both.returncode, 64)
         self.assertIn("--handoff-json '", SKILL)

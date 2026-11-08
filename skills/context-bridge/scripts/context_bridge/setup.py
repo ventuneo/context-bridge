@@ -49,7 +49,8 @@ MARK_END = "<!-- context-bridge:end -->"
 BLOCK_RE = re.compile(r"<!-- context-bridge:begin v\d+ -->.*?<!-- context-bridge:end -->(?:\r?\n)?", re.DOTALL)
 SIMILAR_RE = re.compile(r"context[ _-]?bridge", re.IGNORECASE)
 MAX_FILE_BYTES = 256 * 1024
-HOOK_SUFFIX = " session-start"
+HOOK_ARG = "session-start"
+HOOK_SUFFIX = " " + HOOK_ARG
 HOOK_TIMEOUT = 10  # seconds; verify takes well under one second
 
 # Kept short on purpose: it is read in every session. The skill itself enforces consent, the
@@ -274,38 +275,51 @@ def hook_installed(root: Path) -> bool:
     return False
 
 
-_UNQUOTABLE_ON_WINDOWS = re.compile(r'[$`%"]')  # would be expanded by Git Bash or cmd.exe inside quotes
+def hook_entry(script: Path | str, *, windows: bool = compat.WINDOWS, executable: str | None = None) -> dict[str, Any]:
+    """The SessionStart hook for settings.json.
 
+    macOS, Linux and WSL: shell form, ``python3 -I <script> session-start``. The script path is
+    quoted only if it needs it, so hooks installed by 0.1 stay current.
 
-def hook_command(script: Path | str, *, windows: bool = compat.WINDOWS, executable: str | None = None) -> str:
-    """The SessionStart command line.
-
-    POSIX: ``python3 -I <script> session-start``, the script path quoted only if it needs it.
-    Windows: the Python that runs setup (``python3`` is usually missing there) and the script,
-    both with forward slashes and in double quotes, which Git Bash (the shell Claude Code uses
-    on Windows) and cmd.exe both accept.
+    Windows: exec form, ``command`` plus ``args`` (Claude Code 2.1.139 or later). Claude Code runs a
+    shell-form hook in Git Bash, or in PowerShell when Git Bash is not installed, and no quoting
+    of a program path works in both; exec form starts the program directly, without a shell.
+    ``command`` is the Python that runs setup, because ``python3`` is usually missing on Windows.
     """
     if windows:
-        python = PureWindowsPath(executable or sys.executable).as_posix()
-        return f'"{python}" -I "{PureWindowsPath(script).as_posix()}"{HOOK_SUFFIX}'
-    return f"python3 -I {shlex.quote(str(script))}{HOOK_SUFFIX}"
+        python, path = str(PureWindowsPath(executable or sys.executable)), str(PureWindowsPath(script))
+        return {"type": "command", "command": python, "args": ["-I", path, HOOK_ARG], "timeout": HOOK_TIMEOUT}
+    return {
+        "type": "command",
+        "command": f"python3 -I {shlex.quote(str(script))}{HOOK_SUFFIX}",
+        "timeout": HOOK_TIMEOUT,
+    }
 
 
 def hook_command_problem(
     *, windows: bool = compat.WINDOWS, script: Path | str, executable: str | None = None
 ) -> str | None:
-    """Why the hook command cannot be written safely on this system, or None."""
-    if not windows:
-        return None
-    for label, value in (("Python", executable or sys.executable), ("the skill", str(script))):
-        if _UNQUOTABLE_ON_WINDOWS.search(value):
-            return (f"the path of {label} contains $, `, % or a quote, which the shell would expand; install the "
+    """Why the hook cannot be written safely on this system, or None.
+
+    Claude Code replaces path placeholders such as ``${CLAUDE_PROJECT_DIR}`` in ``command`` and in
+    ``args`` before it starts the hook, so a path that contains ``${`` could be changed.
+    """
+    paths = [("the skill", str(script))] + ([("Python", executable or sys.executable)] if windows else [])
+    for label, value in paths:
+        if "${" in value:
+            return (f"the path of {label} contains '${{', which Claude Code treats as a placeholder; install the "
                     "hook by hand (see docs/setup.md)")  # fmt: skip
     return None
 
 
 def _is_our_hook(hook: Any) -> bool:
-    command = hook.get("command", "") if isinstance(hook, dict) else ""
+    """A Context Bridge SessionStart hook, in shell form or in exec form (Windows)."""
+    if not isinstance(hook, dict):
+        return False
+    command, args = hook.get("command", ""), hook.get("args")
+    if isinstance(args, list):
+        return (len(args) >= 2 and args[-1] == HOOK_ARG and isinstance(args[-2], str)
+                and PureWindowsPath(args[-2]).name == "cb.py")  # fmt: skip
     return isinstance(command, str) and command.endswith(HOOK_SUFFIX) and "cb.py" in command
 
 
@@ -377,8 +391,7 @@ def plan_install(
         if problem:
             plan.blockers.append(problem)
             return plan
-        command = hook_command(script_path)
-        desired = {"hooks": [{"type": "command", "command": command, "timeout": HOOK_TIMEOUT}]}
+        desired = {"hooks": [hook_entry(script_path)]}
         entries = data.setdefault("hooks", {}).setdefault("SessionStart", [])
         ours = [e for e in entries if isinstance(e, dict) and any(_is_our_hook(h) for h in e.get("hooks", []))]
         if ours == [desired]:

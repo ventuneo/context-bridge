@@ -174,7 +174,13 @@ class TempProject:
 
     def git(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
-            ["git", *args], cwd=self.root, env=isolated_env(self.home), capture_output=True, text=True, check=True
+            ["git", *args],
+            cwd=self.root,
+            env=isolated_env(self.home),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
         )
 
     def git_init(self, commit: bool = True) -> None:
@@ -191,9 +197,17 @@ class TempProject:
             input=input_text,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
             timeout=60,
         )
+
+
+def hook_argv(hook: dict) -> list[str]:
+    """What Claude Code starts for a command hook: exec form directly, shell form through ``sh -c``."""
+    if "args" in hook:
+        return [hook["command"], *hook["args"]]
+    return ["sh", "-c", hook["command"]]
 
 
 def snapshot(root: Path) -> dict[str, tuple[int, int, bytes]]:

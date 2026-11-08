@@ -165,7 +165,19 @@ def check_history(terms: list[str]) -> list[Finding]:
     return findings
 
 
+def utf8_output() -> None:
+    """Write UTF-8 like cb.py does; on Windows, pipes would otherwise use the ANSI code page."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="backslashreplace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    utf8_output()
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--staged", action="store_true")

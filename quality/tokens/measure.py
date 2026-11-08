@@ -34,7 +34,7 @@ def prompt_tokens(cwd: Path, model: str, sample: Path | None = None) -> tuple[in
            "--output-format", "stream-json", "--verbose", "--permission-mode", "dontAsk"]  # fmt: skip
     if sample is not None:
         cmd += ["--append-system-prompt", sample.read_text(encoding="utf-8")]
-    out = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=300, check=True).stdout
+    out = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", timeout=300, check=True).stdout
     events = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
     first = next(e for e in events if e.get("type") == "assistant")
     usage = first["message"]["usage"]

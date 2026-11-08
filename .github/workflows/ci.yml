@@ -18,11 +18,16 @@ jobs:
   test:
     name: test (${{ matrix.os }}, Python ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 30 # Windows runners are slower
+    defaults:
+      run:
+        # bash everywhere, on Windows the one from Git for Windows: a step stops at its first failing
+        # command (PowerShell, the Windows default, would carry on and report only the last one).
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,7 +43,7 @@ jobs:
         run: python -I quality/run.py --check
       - name: Token estimate matches its measurements
         run: python -I quality/tokens/calibrate.py --check
-      - name: Fresh install smoke test
+      - name: Fresh install smoke test (a directory junction on Windows, a symlink elsewhere)
         run: python -I tools/install_smoke.py --python python
       - name: JSON Schema cross-check (development dependency)
         run: |
