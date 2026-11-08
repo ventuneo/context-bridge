@@ -106,6 +106,12 @@ class SkillTests(unittest.TestCase):
                        "Do not read `.context-bridge/*.json`"):  # fmt: skip
             self.assertIn(phrase, SKILL)
 
+    def test_commands_must_stand_alone(self) -> None:
+        # Regression (real headless session): a model appended '; echo "EXIT=$?"' to see the exit code,
+        # which no longer matched allowed-tools, so the non-interactive session refused the scan.
+        for rule in ("nothing before or after it", "no `; echo $?`", "reports a non-zero exit code by"):
+            self.assertIn(rule, " ".join(SKILL.split()))
+
     def test_no_personal_paths(self) -> None:
         self.assertNotRegex(ALL_TEXT, r"/Users/|/home/")
         self.assertTrue((SKILL_DIR / "scripts" / "cb.py").is_file())

@@ -17,8 +17,11 @@ python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py <command> --root .
 ```
 
 `-I` is required: it keeps planted modules in the project from being imported. Write the command
-exactly in this form: only this form runs without a permission prompt (`setup apply` and
-`setup undo` always ask, on purpose).
+exactly in this form, as one command with nothing before or after it: no `cd`, no `; echo $?`, no
+`&&`, no pipe, no redirection. Only this form runs without a permission prompt, and a
+non-interactive session refuses any other form (`setup apply` and `setup undo` always ask, on
+purpose). You do not need to print the exit code: the Bash tool reports a non-zero exit code by
+itself, and the output says what happened.
 
 | Command | Use it to | Writes |
 |---|---|---|
