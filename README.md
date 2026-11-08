@@ -79,7 +79,7 @@ single project, verifying what you installed, updating and uninstalling.
 | You say | Context Bridge |
 |---|---|
 | "Save the context" | runs `scan`, asks you to approve the sources (the first time), writes the handoff, runs `pack` and `verify`, and reports the coverage |
-| "Where were we?" | runs `resume`, summarises the state and what changed, and suggests the next step |
+| "Where were we?" | summarises the state and what changed, from `resume` or from the digest the optional hook loaded, and suggests the next step |
 | "Is the saved context still accurate?" | runs `verify` |
 | `/context-bridge setup` | lists your CLAUDE.md files and offers the integration, with a preview |
 
