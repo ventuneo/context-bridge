@@ -33,6 +33,7 @@ class CheckTextTests(unittest.TestCase):
     def test_emails(self) -> None:
         self.assertEqual(self.reasons("mail jane" + "@gmail.com"), ["e-mail address"])
         self.assertEqual(self.reasons("dev@example.com, ops@service.test, noreply@anthropic.com, " + NOREPLY), [])
+        self.assertEqual(self.reasons("Committed by GitHub <noreply@github.com>"), [])
 
     def test_private_terms_case_insensitive(self) -> None:
         self.assertEqual(self.reasons("Project TOPSECRET notes", ["topsecret"]), ["private term 'topsecret'"])
@@ -112,6 +113,22 @@ class HookTests(unittest.TestCase):
         result = self.run_check("--history")  # ... but still in history
         self.assertEqual(result.returncode, 1)
         self.assertIn("absolute home path", result.stderr)
+
+    def test_history_accepts_github_as_committer_but_not_an_account_e_mail(self) -> None:
+        # A pull request merge made by GitHub: committer GitHub, author the account's e-mail.
+        personal = "jane" + "@gmail.com"
+        for author, expected in ((NOREPLY, 0), (personal, 1)):
+            env = isolated_env(self.project.home)
+            env.update(GIT_AUTHOR_EMAIL=author, GIT_COMMITTER_NAME="GitHub", GIT_COMMITTER_EMAIL="noreply@github.com")
+            subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "Merge pull request"], cwd=self.project.root,
+                           env=env, check=True, capture_output=True)  # fmt: skip
+            result = self.run_check("--history")
+            with self.subTest(author=author):
+                self.assertEqual(result.returncode, expected, result.stderr)
+        self.assertIn("author e-mail is not a no-reply address", result.stderr)
+        self.assertIn("Keep my email addresses private", result.stderr)
+        self.assertNotIn(personal, result.stderr)  # CI logs are public
+        self.assertNotIn("committer e-mail", result.stderr)
 
     def test_history_labels_leftovers_from_blocked_commits(self) -> None:
         self.stage("probe.md", f"{HOME_PATH}\n")  # git add writes the blob even if the commit is blocked
