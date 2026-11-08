@@ -18,7 +18,9 @@ from context_bridge.consent import ConsentError
 from context_bridge.errors import EXIT_CRITICAL_LOSS, EXIT_OK, EXIT_WARNINGS, PolicyViolation
 from context_bridge.render import render_markdown
 
-FAKE_TOKEN = "gh" + "p_" + "Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6J7k8"
+FAKE_TOKEN = "".join(
+    ("gh", "p_", "Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6J7k8")
+)  # joined at run time: a + chain would be folded into one token-like constant in the .pyc
 FAKE_EMAIL = "erika.muster" + "@" + "mailbox.ch"
 GIT_ENV = {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
 

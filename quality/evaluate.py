@@ -91,7 +91,7 @@ def _iban(country: str, bban: str) -> str:
 
 
 PLACEHOLDERS = {
-    "{{FAKE_GITHUB_TOKEN}}": "gh" + "p_" + ("Quality0Score1Fake2Token3Value4" + "Abcdefghij")[:36],
+    "{{FAKE_GITHUB_TOKEN}}": "".join(("gh", "p_", "Quality0Score1Fake2Token3Value4", "Abcde")),  # not folded
     "{{FAKE_AWS_KEY}}": "AK" + "IA" + "QUALITYCHECK1234",
     "{{FAKE_EMAIL}}": "inspector.one" + "@" + "harbour-mail.ch",
     "{{FAKE_PHONE}}": "+41 79 " + "555 01 02",

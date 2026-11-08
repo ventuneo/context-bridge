@@ -17,7 +17,9 @@ from context_bridge import pack, verify
 from context_bridge.errors import PolicyViolation
 from context_bridge.verify import PackLoadError
 
-FAKE_TOKEN = "gh" + "p_" + "V1e2r3i4f5y6T7o8k9e0n1A2b3C4d5E6f7G8"
+FAKE_TOKEN = "".join(
+    ("gh", "p_", "V1e2r3i4f5y6T7o8k9e0n1A2b3C4d5E6f7G8")
+)  # joined at run time: a + chain would be folded into one token-like constant in the .pyc
 NOW = datetime(2026, 11, 7, 12, 0, tzinfo=UTC)
 
 

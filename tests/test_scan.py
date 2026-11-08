@@ -15,7 +15,9 @@ from helpers import TempProject, snapshot
 from context_bridge import gitrun, policy, safepath, scan
 from context_bridge.errors import PolicyViolation
 
-FAKE_TOKEN = "gh" + "p_" + "Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2"
+FAKE_TOKEN = "".join(
+    ("gh", "p_", "Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2")
+)  # joined at run time: a + chain would be folded into one token-like constant in the .pyc
 FAKE_EMAIL = "max.muster" + "@" + "mailbox.ch"
 PRIVATE_KEY = "-----BEGIN " + "RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA\n-----END " + "RSA PRIVATE KEY-----\n"
 README_SENTENCE = "Unique sentence that must never appear in a scan report."
