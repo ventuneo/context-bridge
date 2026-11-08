@@ -105,13 +105,20 @@ def _validate_extraction(v: _Validator, report: dict[str, Any]) -> None:
         for r, region in enumerate(source["regions"]):
             rpath = f"{path}.regions[{r}]"
             if not v.obj(
-                region, rpath, {"heading": "str?", "line": int, "as": str, **dict.fromkeys(REGION_COUNTS, int)}
+                region,
+                rpath,
+                {"heading": "str?", "line": int, "as": str, "to": dict, **dict.fromkeys(REGION_COUNTS, int)},
             ):
                 continue
             if region["as"] not in SECTION_BY_KEY and region["as"] not in REGION_AS:
                 v.error(f"{rpath}.as", "unknown value")
             if region["line"] < 1 or any(region[key] < 0 for key in REGION_COUNTS):
                 v.error(rpath, "line must be at least 1 and counts must not be negative")
+            to = region.get("to")
+            if not isinstance(to, dict) or any(k not in SECTION_BY_KEY or not _is(n, int) for k, n in to.items()):
+                v.error(f"{rpath}.to", "must map pack sections to counts")
+            elif sum(to.values()) != region["extracted"]:
+                v.error(f"{rpath}.to", "must add up to extracted")
             if region["kept"] + region["merged"] + region["left_out"] != region["extracted"]:
                 v.error(rpath, "kept, merged and left_out must add up to extracted")
 

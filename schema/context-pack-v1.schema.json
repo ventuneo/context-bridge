@@ -521,7 +521,8 @@
                     "left_out",
                     "inferred",
                     "unclassified",
-                    "not_extracted"
+                    "not_extracted",
+                    "to"
                   ],
                   "properties": {
                     "heading": {
@@ -580,6 +581,17 @@
                     "not_extracted": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "to": {
+                      "description": "the pack sections the items of this heading went to, with counts",
+                      "type": "object",
+                      "propertyNames": {
+                        "$ref": "#/$defs/section_key"
+                      },
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
                     }
                   }
                 }

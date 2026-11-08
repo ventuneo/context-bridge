@@ -290,7 +290,7 @@ def _check_coverage(report: VerifyReport, pack: dict[str, Any]) -> None:
     items = [item for _section, item in _items(pack)]
     expected = coverage_of(
         pack["budget"]["retention"], len(items), sum(1 for i in items if FLAG_TRUNCATED in i["flags"]),
-        len(pack["critical_loss"]),
+        len(pack["critical_loss"]), pack["schema_version"],
     )  # fmt: skip
     if pack["coverage"] != expected:
         report.add(ERROR, "coverage_misstated", f"the pack declares coverage '{pack['coverage']['status']}', "

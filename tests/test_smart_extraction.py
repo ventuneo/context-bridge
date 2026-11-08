@@ -256,6 +256,26 @@ class PackTests(unittest.TestCase):
         self.assertIn("We decided to plan tours per weekday. (inferred)", digest)
         self.assertNotIn("cool box", digest)  # unclassified notes stay out of the short digest
 
+    def test_a_pack_of_schema_1_0_still_verifies(self) -> None:
+        # Written the way 0.2 wrote it: no extraction report and the old wording of the coverage statement.
+        project = TempProject()
+        self.addCleanup(project.cleanup)
+        packtools.make_project(project)
+        with helpers.patched_home(project.home):
+            pack.build(project.root, approve=True)
+
+            def as_1_0(p: dict) -> None:
+                p.pop("extraction")
+                p["schema_version"] = "1.0"
+                p["coverage"]["statement"] = p["coverage"]["statement"].replace(
+                    "files outside the allowlist, code and boilerplate sections are not extracted",
+                    "text outside recognised sections is not in the pack",
+                )
+
+            old = packtools.tamper(project.root, as_1_0)
+            self.assertIn("text outside recognised sections", old["coverage"]["statement"])
+            self.assertEqual([f.code for f in verify.verify(project.root).errors], [])
+
     def test_packs_of_schema_1_0_still_validate(self) -> None:
         old = self.build().pack
         old.pop("extraction")

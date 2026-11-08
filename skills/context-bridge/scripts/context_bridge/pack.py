@@ -124,11 +124,13 @@ def extraction_report(outlines: dict[str, tuple[str, list[markdown.Region]]], it
     sources = []
     for source_id, (label, regions) in outlines.items():
         counts: list[Counter[str]] = [Counter() for _ in regions]
+        targets: list[Counter[str]] = [Counter() for _ in regions]
         for item in items:
             if item.source != source_id or item.region is None:
                 continue
             c = counts[item.region]
             c["extracted"] += 1
+            targets[item.region][item.section] += 1
             c["inferred"] += FLAG_INFERRED in item.flags
             c["unclassified"] += item.section == "unclassified"
             if id(item) not in unique_ids:
@@ -139,7 +141,7 @@ def extraction_report(outlines: dict[str, tuple[str, list[markdown.Region]]], it
             else:
                 c["left_out"] += 1
         rows = []
-        for region, c in zip(regions, counts, strict=True):
+        for region, c, to in zip(regions, counts, targets, strict=True):
             if region.heading is None and not c["extracted"] and not region.over_limit:
                 continue  # nothing before the first heading
             rows.append(
@@ -149,6 +151,7 @@ def extraction_report(outlines: dict[str, tuple[str, list[markdown.Region]]], it
                     "as": "skipped" if region.skipped else (region.section or "unrecognised"),
                     **{key: c[key] for key in REGION_COUNTS},
                     "not_extracted": region.over_limit,
+                    "to": dict(sorted(to.items())),  # the pack sections its items went to
                 }
             )
         sources.append({"label": label, "regions": rows})
@@ -158,7 +161,7 @@ def extraction_report(outlines: dict[str, tuple[str, list[markdown.Region]]], it
 def smart_summary(report: dict[str, Any]) -> str | None:
     """One line about the text from unrecognised headings, or None if there was none."""
     regions = [r for s in report["sources"] for r in s["regions"]]
-    smart = [r for r in regions if r["as"] == "unrecognised" or r["inferred"] or r["unclassified"]]
+    smart = [r for r in regions if r["inferred"] or r["unclassified"]]
     inferred, notes = sum(r["inferred"] for r in regions), sum(r["unclassified"] for r in regions)
     skipped = sum(1 for r in regions if r["as"] == "skipped")
     if not (inferred or notes or skipped):
@@ -183,8 +186,9 @@ def format_sections(report: dict[str, Any]) -> list[str]:
             elif not r["extracted"]:
                 detail = "nothing extracted"
             else:
-                kinds = [f"{r[k]} {k}" for k in ("inferred", "unclassified") if r[k]]
-                detail = (f"{r['extracted']} item(s){' (' + ', '.join(kinds) + ')' if kinds else ''}: "
+                to = ", ".join(f"{key} {n}" for key, n in r["to"].items())
+                inferred = f" ({r['inferred']} by wording)" if r["inferred"] else ""
+                detail = (f"{r['extracted']} item(s) → {to}{inferred}: "
                           f"{r['kept']} · {r['merged']} · {r['shortened']} · {r['left_out']}")  # fmt: skip
             if r["not_extracted"]:
                 detail += f" · {r['not_extracted']} not extracted (item limit)"
@@ -333,7 +337,7 @@ def build(
 
         loss = selection.critical_loss
         coverage = coverage_of(
-            selection.retention, len(kept), sum(1 for i in kept if FLAG_TRUNCATED in i.flags), len(loss)
+            selection.retention, len(kept), sum(1 for i in kept if FLAG_TRUNCATED in i.flags), len(loss), SCHEMA_VERSION
         )
         referenced = {i.source for i in kept} | {s for i in kept for s in i.also_in} | {i.source for i, _ in loss}
         by_label = {s.id: s.label for s in sources}
