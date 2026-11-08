@@ -1,7 +1,7 @@
 ---
 name: context-bridge
 description: Save, verify and restore project context across AI sessions with source-anchored, local context packs. Use this whenever the user wants to hand off or pick up work - "save the context", "pack the context", "where were we", "resume", "continue from last time", "Kontext sichern", "wo waren wir", "Übergabe für die nächste Sitzung", "mach weiter, wo wir aufgehört haben" - before ending a long session, when switching to another assistant (ChatGPT, Cursor, Codex), or when the user asks whether a saved context is still accurate. Runs local, standard-library-only scripts (scan, pack, verify, resume); nothing leaves the machine.
-allowed-tools: Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py scan *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py pack *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py verify *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py resume *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup status *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup preview *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup undo-preview *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py scan *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py pack *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py verify *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py resume *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup status *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup preview *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup undo-preview *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py scan *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py pack *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py verify *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py resume *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup status *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup preview *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup undo-preview *)
+allowed-tools: Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py scan *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py pack *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py verify *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py resume *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup status *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup preview *), Bash(python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup undo-preview *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py scan *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py pack *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py verify *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py resume *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup status *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup preview *), Bash(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup undo-preview *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py scan *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py pack *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py verify *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py resume *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup status *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup preview *), Bash(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup undo-preview *), PowerShell(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py scan *), PowerShell(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py pack *), PowerShell(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py verify *), PowerShell(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py resume *), PowerShell(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup status *), PowerShell(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup preview *), PowerShell(python -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup undo-preview *), PowerShell(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py scan *), PowerShell(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py pack *), PowerShell(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py verify *), PowerShell(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py resume *), PowerShell(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup status *), PowerShell(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup preview *), PowerShell(py -3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py setup undo-preview *)
 ---
 
 # Context Bridge
@@ -17,7 +17,8 @@ python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py <command> --root .
 ```
 
 On Windows, where `python3` is usually missing, write `python -I` instead of `python3 -I` (or
-`py -3 -I` if `python` is not found), in exactly the same form; WSL is Linux and uses `python3`.
+`py -3 -I` if `python` is not found), in exactly the same form, with the Bash tool (Git Bash) or,
+where Claude Code has no Bash tool, with the PowerShell tool. WSL is Linux and uses `python3`.
 
 `-I` is required: it keeps planted modules in the project from being imported. Write the command
 exactly in this form, as one command with nothing before or after it: no `cd`, no `; echo $?`, no
@@ -56,7 +57,10 @@ information loss · `64` wrong usage.
 
    Keep it a single plain command so it needs no permission prompt: no pipe, no heredoc, no
    line breaks. Wrap the JSON in single quotes and write apostrophes inside texts as `’`.
-   Avoid `$`, backticks, `<` and `>` in texts.
+   Avoid `$`, backticks, `<` and `>` in texts. If `pack` reports that the handoff is not valid
+   JSON although it was (Windows PowerShell 5.1 drops the double quotes inside arguments), write
+   the same JSON with the Write tool to `.context-bridge/handoff.json` and run `pack` with
+   `--handoff .context-bridge/handoff.json` instead of `--handoff-json`.
 
    Default budget: 2000 tokens; use `--budget 4000` for large projects. Token counts are
    calibrated estimates (about ±10 %). The budget covers the

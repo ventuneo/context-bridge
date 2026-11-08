@@ -34,7 +34,8 @@ python3 -I tools/install_smoke.py                    # fresh install in a throwa
 
 Local install for testing: symlink `~/.claude/skills/context-bridge` to `skills/context-bridge`.
 `SKILL.md` may only run `python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py ...` as a single plain command
-(that is what `allowed-tools` permits); pass the handoff with `--handoff-json`, never via pipe or heredoc.
+(on Windows `python -I` or `py -3 -I`, in Bash or PowerShell; that is what `allowed-tools` permits);
+pass the handoff with `--handoff-json`, never via pipe or heredoc.
 
 ## Rules
 

@@ -44,7 +44,9 @@ Session entries are always shown as `(unverified)`: they have no source file to 
 
 Pass the handoff as one JSON argument: `pack --root . --handoff-json '<JSON on one line>'`.
 A single plain command is the only form the skill may run without a permission prompt. Use `’`
-instead of `'` inside texts. `--handoff FILE` (or `-` for stdin) remains for people at a terminal.
+instead of `'` inside texts. Where the shell breaks the JSON (Windows PowerShell 5.1 drops its
+double quotes), write it with the Write tool to `.context-bridge/handoff.json` and pass
+`--handoff .context-bridge/handoff.json` instead. `--handoff -` (stdin) is for people at a terminal.
 
 ## Example
 
