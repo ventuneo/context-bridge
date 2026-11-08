@@ -33,6 +33,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -182,6 +183,12 @@ class Smoke:
         self.check("install: clone a tag and link the skill folder", version.startswith("context-bridge "), version)
 
     def update(self, new: str) -> None:
+        # A real update comes later than the install. Python treats a cached .pyc as current when the
+        # source has the same size and the same mtime in whole seconds, so an update within the same
+        # second as the install could run the old code (0.1.0 -> 0.2.0 keeps the size of __init__.py).
+        init = self.clone / "skills" / "context-bridge" / "scripts" / "context_bridge" / "__init__.py"
+        while time.time() < init.stat().st_mtime + 1.1:
+            time.sleep(0.1)
         self.run("git", "-C", str(self.clone), "fetch", "--quiet", "--depth", "1", "origin", "tag", NEW_TAG)
         self.run("git", "-C", str(self.clone), "checkout", "--quiet", NEW_TAG)
         head = self.run("git", "-C", str(self.clone), "rev-parse", "HEAD").stdout.strip()
