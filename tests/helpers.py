@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -87,6 +88,23 @@ POSIX = os.name == "posix"
 requires_posix_permissions = unittest.skipUnless(POSIX, "Windows has no POSIX permission bits")
 
 
+def remove_tree(path: Path) -> None:
+    """``rm -rf`` that also removes read-only files: git makes its object files read-only, and
+    Windows refuses to delete those. Anything that still cannot be removed is left behind."""
+
+    def writable_and_retry(function, target, *_exc):  # type: ignore[no-untyped-def]
+        try:
+            os.chmod(target, stat.S_IWRITE)
+            function(target)
+        except OSError:
+            pass
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=writable_and_retry)
+    else:
+        shutil.rmtree(path, onerror=writable_and_retry)
+
+
 def make_tempdir() -> Path:
     return Path(tempfile.mkdtemp(prefix="cb-test-")).resolve()
 
@@ -151,7 +169,7 @@ class TempProject:
         self.cleanup()
 
     def cleanup(self) -> None:
-        shutil.rmtree(self.base, ignore_errors=True)
+        remove_tree(self.base)
 
     def write(self, rel: str, content: str | bytes = "", mode: int | None = None) -> Path:
         path = self.root / rel
