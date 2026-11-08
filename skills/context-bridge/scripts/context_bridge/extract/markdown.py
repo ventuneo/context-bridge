@@ -308,7 +308,7 @@ class _Extractor:
         """Split a paragraph without a recognised heading into statements and sort each one.
 
         Short lines are notes, one statement per line; wrapped prose is split into sentences.
-        Neighbouring statements that no wording sorts stay together as one unclassified note.
+        Neighbouring sentences of the same prose that no wording sorts stay together as one note.
         """
         parts = [(block.start + i, " ".join(_QUOTE_RE.sub("", line).split())) for i, line in enumerate(block.lines)]
         parts = [(n, text) for n, text in parts if text]
@@ -316,30 +316,27 @@ class _Extractor:
             units = [[(n, text)] for n, text in parts]
         else:
             units = [parts]
-        statements: list[tuple[str, int, int]] = []
         for unit in units:
             joined, starts = "", []
             for n, text in unit:
                 starts.append((len(joined) + (1 if joined else 0), n))
                 joined = f"{joined} {text}" if joined else text
+            pending: list[tuple[str, int, int]] = []
             for a, b in sentences(joined):
+                sentence = joined[a:b].strip()
                 first = max(n for offset, n in starts if offset <= a)
                 last = max(n for offset, n in starts if offset < b)
-                statements.append((joined[a:b].strip(), first, last))
-        pending: list[tuple[str, int, int]] = []
+                if infer_section(sentence):
+                    self._flush_note(pending, ctx)
+                    self.smart_item(sentence, ctx, first, last)
+                else:
+                    pending.append((sentence, first, last))
+            self._flush_note(pending, ctx)
 
-        def flush_pending() -> None:
-            if pending:
-                self.smart_item(" ".join(s for s, _a, _b in pending), ctx, pending[0][1], pending[-1][2])
-                pending.clear()
-
-        for text, first, last in statements:
-            if infer_section(text):
-                flush_pending()
-                self.smart_item(text, ctx, first, last)
-            else:
-                pending.append((text, first, last))
-        flush_pending()
+    def _flush_note(self, pending: list[tuple[str, int, int]], ctx: _Context) -> None:
+        if pending:
+            self.smart_item(" ".join(s for s, _a, _b in pending), ctx, pending[0][1], pending[-1][2])
+            pending.clear()
 
     def heading(self, level: int, text: str, lineno: int) -> None:
         if level == 1 and self.title is None:
@@ -414,6 +411,22 @@ class _Extractor:
             if command and not command.startswith("#") and taken < MAX_COMMAND_LINES:
                 self.add("commands", command, FACT, "markdown.code", lineno, lineno)
                 taken += 1
+
+
+def content_lines(text: str) -> set[int]:
+    """Line numbers of text a reader reads: not blank, a heading, code, a table rule, hidden text,
+    a badge row or a rule. The quality report measures how many of them end up in items."""
+    lines: set[int] = set()
+    fence = None
+    for lineno, line in enumerate(_strip_hidden(text).splitlines(), start=1):
+        if fence:
+            fence = None if line.strip().startswith(fence) else fence
+            continue
+        if m := _FENCE_RE.match(line):
+            fence = m.group(1)
+        elif not (_HEADING_RE.match(line) or _TABLE_SEP_RE.match(line)) and _has_words(line):
+            lines.add(lineno)
+    return lines
 
 
 def extract(text: str, source_id: str, file_kind: str, origin_rank: int,

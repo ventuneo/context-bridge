@@ -1,0 +1,203 @@
+{
+ "case": "notes",
+ "description": "Unstructured German and English notes: decisions, goals, tasks and questions under free headings or none, prose with an embedded decision, a licence section that must be skipped.",
+ "gates": {
+  "reference_budget": 2000,
+  "min_score": 90,
+  "min_source_coverage": 0.85
+ },
+ "items": [
+  {
+   "id": "D1",
+   "category": "decision",
+   "criticality": "critical",
+   "all": [
+    "plan tours per weekday"
+   ],
+   "status": "fact",
+   "origin": "file",
+   "source": "README.md",
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "D2",
+   "category": "decision",
+   "criticality": "critical",
+   "all": [
+    "kundendaten",
+    "lokal"
+   ],
+   "status": "fact",
+   "origin": "file",
+   "source": "README.md",
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "D3",
+   "category": "decision",
+   "criticality": "critical",
+   "all": [
+    "planner on the office pc",
+    "cloud"
+   ],
+   "status": "fact",
+   "origin": "file",
+   "source": "docs/notes.md",
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "G1",
+   "category": "goal",
+   "criticality": "critical",
+   "all": [
+    "tourenplanung",
+    "zehn minuten"
+   ],
+   "status": "fact",
+   "origin": "file",
+   "source": "docs/notes.md",
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "G2",
+   "category": "goal",
+   "criticality": "critical",
+   "all": [
+    "deliver every order within two days"
+   ],
+   "status": "fact",
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "N1",
+   "category": "next_step",
+   "criticality": "critical",
+   "all": [
+    "print the delivery notes"
+   ],
+   "status": "fact",
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "N2",
+   "category": "next_step",
+   "criticality": "critical",
+   "all": [
+    "bestellungen einer echten woche"
+   ],
+   "origin": "session"
+  },
+  {
+   "id": "T1",
+   "category": "fact",
+   "criticality": "important",
+   "all": [
+    "lieferzeiten der brauerei"
+   ],
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "T2",
+   "category": "fact",
+   "criticality": "important",
+   "all": [
+    "adressen bereinigen"
+   ],
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "Q1",
+   "category": "open_question",
+   "criticality": "important",
+   "all": [
+    "feiertage im kalender"
+   ],
+   "status": "uncertain",
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "Q2",
+   "category": "open_question",
+   "criticality": "normal",
+   "all": [
+    "import orders from the web shop"
+   ],
+   "status": "uncertain",
+   "flags": [
+    "inferred"
+   ]
+  },
+  {
+   "id": "F1",
+   "category": "fact",
+   "criticality": "normal",
+   "all": [
+    "kühlfach für 40 kisten"
+   ],
+   "status": "fact"
+  },
+  {
+   "id": "F2",
+   "category": "fact",
+   "criticality": "normal",
+   "all": [
+    "saturdays are only for the restaurant customers"
+   ],
+   "status": "fact"
+  },
+  {
+   "id": "F3",
+   "category": "fact",
+   "criticality": "normal",
+   "all": [
+    "excel-liste",
+    "von hand"
+   ],
+   "status": "fact"
+  },
+  {
+   "id": "F4",
+   "category": "fact",
+   "criticality": "normal",
+   "all": [
+    "touren am vorabend als pdf"
+   ],
+   "status": "fact"
+  },
+  {
+   "id": "F5",
+   "category": "fact",
+   "criticality": "normal",
+   "all": [
+    "app für die fahrer"
+   ],
+   "status": "uncertain"
+  }
+ ],
+ "forbidden": [
+  {
+   "id": "L1",
+   "any": [
+    "permission is hereby granted"
+   ]
+  }
+ ]
+}
