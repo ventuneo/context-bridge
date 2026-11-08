@@ -140,9 +140,9 @@ class Smoke:
     def prepare_home(self) -> dict[str, bytes]:
         claude = self.home / ".claude"
         claude.mkdir(parents=True)
-        (claude / "CLAUDE.md").write_text("# My rules\n\n- Keep answers short.\n", encoding="utf-8")
+        (claude / "CLAUDE.md").write_text("# My rules\n\n- Keep answers short.\n", encoding="utf-8", newline="\n")
         settings = {"theme": "dark", "hooks": {"SessionEnd": [{"hooks": [{"type": "command", "command": "true"}]}]}}
-        (claude / "settings.json").write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+        (claude / "settings.json").write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8", newline="\n")
         return tree(self.home)
 
     def publish(self, source: str, ref: str) -> tuple[str, str]:

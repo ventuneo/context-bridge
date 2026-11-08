@@ -58,7 +58,7 @@ def main() -> int:
                 samples["en-guide.md"] = (root / "docs" / "guides" / "guide-01.md").read_text(encoding="utf-8")
                 samples["digest-large.txt"] = autoresume.digest(json.dumps({"cwd": str(root)}).encode(), now=NOW)
     for name, text in sorted(samples.items()):
-        (out / name).write_text(text, encoding="utf-8")
+        (out / name).write_text(text, encoding="utf-8", newline="\n")
         print(f"{name:20} {len(text):6} characters")
     return 0
 

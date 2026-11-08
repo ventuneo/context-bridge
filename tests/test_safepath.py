@@ -126,7 +126,7 @@ class WriteTests(SafePathTestCase):
         if os.name == "posix":
             self.assertEqual(stat.S_IMODE(store.stat().st_mode), 0o700)
         evil = self.root / ".evil-store"
-        evil.symlink_to(self.project.base)
+        evil.symlink_to(self.project.base, target_is_directory=True)
         with self.assertRaises(UnsafePathError):
             ensure_private_dir(evil)
 

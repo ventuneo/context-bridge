@@ -159,7 +159,7 @@ class TempProject:
         if isinstance(content, bytes):
             path.write_bytes(content)
         else:
-            path.write_text(content, encoding="utf-8")
+            path.write_text(content, encoding="utf-8", newline="\n")
         if mode is not None:
             path.chmod(mode)
         return path
@@ -169,7 +169,7 @@ class TempProject:
         path.parent.mkdir(parents=True, exist_ok=True)
         if _NO_SYMLINKS:
             raise OSError("simulated: creating symlinks needs Developer Mode on Windows")
-        path.symlink_to(target)
+        path.symlink_to(target, target_is_directory=Path(target).is_dir())  # Windows needs to know
         return path
 
     def git(self, *args: str) -> subprocess.CompletedProcess:

@@ -107,7 +107,7 @@ class DenyRootTests(unittest.TestCase):
     @helpers.requires_symlinks
     def test_deny_root_given_via_symlink(self) -> None:
         alias = self.project.base / "alias"
-        os.symlink(self.private, alias)
+        os.symlink(self.private, alias, target_is_directory=True)
         self.assertTrue(DenyRoots([alias]).blocks(self.private / "sub"))
 
 
