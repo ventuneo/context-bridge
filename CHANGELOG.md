@@ -7,7 +7,7 @@ the command line or the pack format; such changes are listed under **Changed**.
 
 ## [Unreleased]
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-11-08
 
 First public release.
 
