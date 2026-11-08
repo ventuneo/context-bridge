@@ -67,44 +67,25 @@ There is no package upload and no plugin-marketplace entry.
 3. Run the checks above, then tag, push the tag and create the release.
 4. Run the smoke test against the new tag.
 
-## Release notes for v0.3.0
+## Release notes for v0.3.1
 
-> **Context Bridge 0.3.0: smart extraction**
+> **Context Bridge 0.3.1: fixes for smart extraction**
 >
-> Context Bridge now keeps project context that is not under the headings it knows. Text under
-> unrecognised headings, such as meeting notes, wiki pages or "Background" sections, used to be
-> dropped without a trace. Now it is sorted by its wording or kept as a note, and every pack says
-> what happened to each heading.
+> Two cases where smart extraction sorted text wrongly, found when Context Bridge packed its own
+> documentation:
 >
-> - **Sorted by wording:** statements such as "we decided …", "wir haben entschieden …", "the goal
->   is …", "TODO …", "wir müssen noch …" or a question go to decisions, goals, next steps, tasks or
->   open questions, marked `(inferred)`.
-> - **Unclassified notes:** everything else is kept as a note in a new section. Notes are the first
->   to be left out when the budget is tight, and the coverage statement counts them, so nothing
->   disappears silently.
-> - **Statements, not blobs:** short note lines count one by one; wrapped prose is split into
->   sentences, respecting abbreviations such as "z. B." and "e.g.". Licence, credits and
->   table-of-contents sections are skipped.
-> - **Extraction report:** `pack` prints a one-line summary, `pack --sections` shows per file and
->   heading what was kept, merged, shortened, left out or skipped, and `pack --dry-run --sections`
->   previews it without writing anything.
-> - **Measured:** the Context Quality Score gains a metric for source coverage, the share of the
->   readable source text that ends up in items. On a new reference case of unstructured German and
->   English notes the score rose from 9.1 to 100 and source coverage from 5 % to 95 %; on the large
->   reference project source coverage rose from 40 % to 100 %. No score of the earlier cases changed.
-> - **Same guarantees:** every item still names its file and line range and is re-derived by
->   `verify`; redaction, prompt-injection checks and token budgets apply to the new items too.
+> - **Quoted examples are not statements.** A line that quotes "we decided" or "TODO", in quotation
+>   marks or as inline code, is no longer a decision or a task. Apostrophes as in "we've" or "don't"
+>   never start a quotation, and a decision that only quotes a name is still a decision.
+> - **Questions in tables are labels.** A Markdown table row is no longer an open question only
+>   because its cells end with a question mark, as in a comparison table with a "Question" row. Cue
+>   phrases in table rows still count.
 >
-> **Compatibility:** packs now use schema 1.1. Packs written by 0.1 and 0.2 still verify; packs
-> written by 0.3 need 0.3. A pack that was complete at its budget may now report PARTIAL coverage,
-> because more text is extracted.
+> Nothing else changed: all 48 runs of the Context Quality Score match 0.3.0 exactly (score,
+> critical items and source coverage).
 >
-> **Known limitations:** sorting by wording is a heuristic for English and German only. A sentence
-> that reports someone else's decision still counts as a decision, and a decision phrased without the
-> known words stays an unclassified note. Statements are found by line length and punctuation.
-> Checklist templates and milestone tables are still read as open tasks. Not tested yet: Claude Code
-> itself on Windows, and WSL 2 on a real installation. Details are in docs/limitations.md and
-> docs/quality.md.
+> **Known limitation:** short forms such as "we've agreed" are not recognised as decisions yet;
+> "we've decided to …" is.
 >
 > **Update:** check out the new tag in your clone (docs/install.md, Update). CI runs on Linux, macOS
 > and Windows with Python 3.11 to 3.15.
