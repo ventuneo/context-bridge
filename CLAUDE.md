@@ -15,7 +15,7 @@ Roadmap: `docs/roadmap.md`.
 | `tests/` | `unittest` suite; `helpers.py` isolates HOME and guards the real home directory |
 | `quality/tokens/` | Calibration samples, measured token counts and the scripts that measure and fit them |
 | `examples/demo-project/` | Synthetic project used by the README demo, tests and the install smoke test |
-| `docs/` | User and maintainer docs: install, setup, limitations, quality, release checklist |
+| `docs/` | User and maintainer docs: install, setup, platforms, limitations, quality, release checklist |
 | `tools/privacy_check.py` | Repository privacy guard used by `.githooks/` |
 
 ## Commands

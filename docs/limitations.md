@@ -1,6 +1,6 @@
 # Known limitations
 
-Context Bridge 0.1 is an early release. This page lists what it does not do, or does only
+Context Bridge 0.2 is an early release. This page lists what it does not do, or does only
 approximately, so that you can judge its output. The [quality report](quality.md) has the
 measurements behind the numbers.
 
@@ -56,12 +56,31 @@ of six text features, calibrated against real token counts (see
 
 ## Platforms and integration
 
-- **macOS and Linux only.** Windows is untested: file permissions, symbolic links and
-  `python3 -I` behave differently there.
-- **`python3` must be Python 3.11 or newer.** The skill and the hook call `python3`. With an older
-  `python3` they only print an error.
+- **Windows is tested without Claude Code.** CI runs the test suite and a fresh installation on
+  Windows with Python 3.11 to 3.15. Claude Code on Windows was not tested:
+  - The skill's commands may need a permission prompt there. Whether they run without one depends
+    on how Claude Code writes the skill folder into commands.
+  - The SessionStart hook was started the way the Claude Code documentation describes its exec form,
+    but not by Claude Code itself.
+- **Windows PowerShell 5.1 and the handoff.** Without Git for Windows, Claude Code runs commands in
+  PowerShell. Windows PowerShell 5.1 drops the double quotes inside arguments, which breaks
+  `--handoff-json`. The skill then passes the handoff in a file instead.
+- **No POSIX permissions on Windows.** There, `.context-bridge/`, approvals and setup backups are
+  protected by the access rules of the folder they are in, not by file modes. In your user profile
+  only you can read them. A project elsewhere, for example on another drive, keeps the rules of that
+  drive, which may let other users of the computer read its packs.
+- **Links on Windows.** Creating a symbolic link needs Developer Mode or administrator rights.
+  Context Bridge treats symbolic links and directory junctions alike and never follows one out of
+  the project.
+- **WSL 2 was not tested on a real installation.** Inside WSL, Context Bridge follows the Linux
+  rules, which CI tests. On a Windows drive (`/mnt/c/...`), file permissions usually have no effect,
+  and `pack` warns about this. Projects opened from Windows through `\\wsl$\` were not tested.
+- **The Python command.** On macOS, Linux and WSL the skill and the hook call `python3`, which must
+  be Python 3.11 or newer; an older `python3` only prints an error. On Windows the skill calls
+  `python` or `py -3`, and the hook starts the Python that ran `setup` by its full path.
 - **Tested in headless sessions.** The skill and the SessionStart hook were tested end to end with
-  `claude -p`. Interactive sessions use the same mechanisms, but no automated test covers them.
+  `claude -p` on macOS. Interactive sessions use the same mechanisms, but no automated test covers
+  them.
 - **The hook answers startup and resume.** After `/clear` or a compaction it stays silent unless you
   configure otherwise. When a session is resumed, Claude Code adds the digest again only if it
   changed.

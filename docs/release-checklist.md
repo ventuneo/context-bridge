@@ -5,8 +5,10 @@ There is no package upload and no plugin-marketplace entry.
 
 ## Before every release
 
-- [ ] `main` is green in CI: tests on Linux and macOS with Python 3.11 to 3.15, lint, the install
-      smoke test.
+- [ ] `main` is green in CI: tests on Linux, macOS and Windows with Python 3.11 to 3.15, lint, the
+      install smoke test.
+- [ ] The branch protection of `main` requires every CI job: 15 test jobs (three systems, five
+      Python versions) and lint. Add new jobs there when the matrix grows.
 - [ ] Local checks pass:
 
       python3 -W error -m unittest discover -s tests
@@ -28,6 +30,8 @@ There is no package upload and no plugin-marketplace entry.
   - "Save the context" in a test project;
   - "Where were we?" in a new session;
   - `/context-bridge setup` up to the preview.
+- [ ] If a Windows computer is available, the same in Claude Code on Windows, with Git for Windows
+      and, if possible, without it (PowerShell). Note in the release notes whether this was done.
 
 ## First publication (v0.1.0)
 
@@ -63,20 +67,18 @@ There is no package upload and no plugin-marketplace entry.
 3. Run the checks above, then tag, push the tag and create the release.
 4. Run the smoke test against the new tag.
 
-## Release notes for v0.1.0 (proposal)
+## Release notes for v0.2.0 (proposal)
 
-> **Context Bridge 0.1.0: first public release**
+> **Context Bridge 0.2.0: Windows and WSL 2**
 >
-> Context Bridge is a Claude Code skill that saves where a project stands as a small,
-> source-anchored context pack. It checks the pack against the current files and restores it in a
-> new session.
+> - Windows 10 and 11: install with a directory junction (no administrator rights), `python` or
+>   `py -3` instead of `python3`, data in `%LOCALAPPDATA%` and `%APPDATA%`
+> - The SessionStart hook on Windows starts Python without a shell (exec form, Claude Code 2.1.139
+>   or newer); on macOS and Linux it is unchanged
+> - Safety core: Windows device names, alternate data streams and directory junctions are refused
+>   or treated as links; paths compare regardless of case on Windows
+> - WSL 2 runs as Linux; on Windows drives, `pack` warns when file permissions have no effect
+> - CI runs on Linux, macOS and Windows with Python 3.11 to 3.15
 >
-> - `scan`, `pack`, `verify` and `resume`, local only, with the Python standard library
-> - every item tied to its file, line range and checksum; session notes marked `(unverified)`
-> - honest coverage: a pack never claims to be complete, and dropped critical items are reported
-> - `/context-bridge setup`: an optional CLAUDE.md block and an optional SessionStart hook that loads
->   a verified digest of about 350 tokens, with preview, backup and undo
-> - a token estimate calibrated against real Claude token counts, off by 4.3 % on average
->
-> Install: see the README (`git clone` of the tag and a symbolic link). Supported on macOS and Linux
-> with Python 3.11+. Known limitations: docs/limitations.md.
+> Not tested yet: Claude Code itself on Windows, and WSL 2 on a real installation. See
+> docs/platforms.md and docs/limitations.md.

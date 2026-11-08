@@ -56,7 +56,7 @@ class VersionTests(unittest.TestCase):
 class CommunityFileTests(unittest.TestCase):
     def test_community_files_exist(self) -> None:
         for name in ("README.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
-                     "docs/install.md", "docs/setup.md", "docs/limitations.md", "docs/quality.md",
+                     "docs/install.md", "docs/setup.md", "docs/limitations.md", "docs/quality.md", "docs/platforms.md",
                      "docs/release-checklist.md", ".github/pull_request_template.md", ".github/dependabot.yml",
                      ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/feature_request.yml",
                      ".github/ISSUE_TEMPLATE/config.yml"):  # fmt: skip

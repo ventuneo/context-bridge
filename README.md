@@ -6,7 +6,7 @@ later that it is still true, and pick up the work in a new session.
 [![CI](https://github.com/ventuneo/context-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/ventuneo/context-bridge/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
-![Platforms: macOS, Linux](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux-lightgrey.svg)
+![Platforms: macOS, Linux, Windows](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)
 
 Context Bridge is a skill for Claude Code. It reads goals, constraints, decisions, next steps and
 the current state from files you approve. It adds a short handoff from the conversation and writes
@@ -54,9 +54,10 @@ project that move.
 
 ## Requirements
 
-- Python 3.11 or newer, available as `python3`
-- Claude Code, to use the skill (the command line also works on its own)
-- macOS or Linux (Windows is not supported yet)
+- Python 3.11 or newer: `python3` on macOS, Linux and WSL; `python` or `py -3` on Windows
+- Claude Code, to use the skill (the command line also works on its own); on Windows, 2.1.139 or
+  newer for the optional SessionStart hook
+- macOS, Linux, Windows 10 or 11, or WSL 2 (see [docs/platforms.md](docs/platforms.md))
 - git, optional: with it, packs include the branch, recent commits and uncommitted changes
 
 ## Installation
@@ -65,14 +66,24 @@ Context Bridge is installed from this repository. It is not distributed through 
 marketplace.
 
 ```sh
-git clone --branch v0.1.0 --depth 1 https://github.com/ventuneo/context-bridge.git ~/.local/share/context-bridge
+git clone --branch v0.2.0 --depth 1 https://github.com/ventuneo/context-bridge.git ~/.local/share/context-bridge
 mkdir -p ~/.claude/skills
 ln -s ~/.local/share/context-bridge/skills/context-bridge ~/.claude/skills/context-bridge
-python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version   # context-bridge 0.1.0
+python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version   # context-bridge 0.2.0
 ```
 
-Then start a new Claude Code session. [docs/install.md](docs/install.md) covers installing for a
-single project, verifying what you installed, updating and uninstalling.
+On Windows, in PowerShell (a directory junction instead of a symbolic link, so no administrator
+rights are needed):
+
+```powershell
+git clone --branch v0.2.0 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:LOCALAPPDATA\Programs\context-bridge"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills" | Out-Null
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\context-bridge" -Target "$env:LOCALAPPDATA\Programs\context-bridge\skills\context-bridge"
+python -I "$env:USERPROFILE\.claude\skills\context-bridge\scripts\cb.py" --version   # or: py -3 -I ...
+```
+
+Then start a new Claude Code session. [docs/install.md](docs/install.md) covers WSL 2, installing
+for a single project, verifying what you installed, updating and uninstalling.
 
 ## Using it in Claude Code
 
@@ -84,7 +95,8 @@ single project, verifying what you installed, updating and uninstalling.
 | `/context-bridge setup` | lists your CLAUDE.md files and offers the integration, with a preview |
 
 The skill recognises German requests too ("Kontext sichern", "wo waren wir"). It only runs
-`python3 -I …/cb.py` commands, and `setup apply` and `setup undo` always ask for your confirmation.
+`python3 -I …/cb.py` commands (on Windows `python -I` or `py -3 -I`), and `setup apply` and
+`setup undo` always ask for your confirmation.
 
 ## Demo
 
@@ -247,7 +259,8 @@ See [docs/quality.md](docs/quality.md).
   and it is not reported as lost either.
 - Handoff entries from the conversation cannot be checked against files.
 - Token counts are estimates, calibrated for Claude's tokenizer on English and German text.
-- Only macOS and Linux are supported, and the hook was tested in headless Claude Code sessions.
+- Windows is tested in CI, but not yet with Claude Code itself. The skill and the hook were tested
+  end to end in headless Claude Code sessions on macOS.
 
 The full list is in [docs/limitations.md](docs/limitations.md).
 
