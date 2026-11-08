@@ -45,11 +45,14 @@ it is derived from. `verify` recomputes it; a pack that overstates its coverage 
 | Result | Meaning | What to do |
 |---|---|---|
 | `ok` | integrity, safety and freshness checks passed | use the pack, still check items before acting |
-| `ok_with_warnings` | e.g. changed sources, new commits, partial coverage, old pack | name the warnings; re-check outdated items |
+| `ok_with_warnings` | e.g. changed or missing sources, rewritten git history, partial coverage, old pack | name the warnings; re-check outdated items |
 | `critical_information_loss` | the pack records dropped critical items | warn first; offer a new pack with a larger budget |
 | `failed` | modified, forged, unsafe or broken pack | do not use it; offer a new pack |
 
 Common findings: `source_changed` / `source_missing` (items listed as outdated),
+`repository_progressed` (info: new commits or uncommitted work; source files are compared by
+content, so this alone never makes an item outdated), `git_history_rewritten` (the pack's
+commit is no longer in the history; the git snapshot is outdated),
 `item_not_in_source` (an item cannot be derived from its unchanged file: forged),
 `content_hash_mismatch` / `markdown_modified` (edited after writing), `coverage_misstated`,
 `secret_in_pack`, `delimiter_in_pack`, `unflagged_instruction`, `trust_notice_altered`.

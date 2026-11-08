@@ -13,7 +13,9 @@ entry and further integrations come after the MVP.
 | M5 Context Quality Score | Synthetic reference cases with ground truth; weighted retention of goals, constraints, decisions, next steps and facts | CQS ≥ 90 at the default budget, 100 % of critical items kept, no forbidden content |
 | M6 Skill | `SKILL.md`, references, local end-to-end test in Claude Code | Save and resume work in a real session |
 
-Status: M0–M7 done (MVP plus self-integration; not published).
+Status: M0–M7.1 done (MVP, self-integration, auto-resume hook; not published). Before the first
+release: calibrated token estimate and git freshness that separates repository progress from
+source changes (done).
 
 ## Planned after the MVP
 

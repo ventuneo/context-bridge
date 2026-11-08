@@ -1,0 +1,92 @@
+{
+  "model": "claude-haiku-5-5",
+  "measured_on": "2026-11-08",
+  "method": "claude -p, sample appended to a minimal system prompt; prompt tokens minus the same session without the sample, minus the separator (see quality/tokens/measure.py)",
+  "baseline_tokens": [
+    3637,
+    3637
+  ],
+  "separator_tokens": 10,
+  "samples": [
+    {
+      "sample": "de-german.md",
+      "characters": 1234,
+      "tokens": 609
+    },
+    {
+      "sample": "digest-large.txt",
+      "characters": 953,
+      "tokens": 357
+    },
+    {
+      "sample": "en-basic-docs.md",
+      "characters": 1121,
+      "tokens": 448
+    },
+    {
+      "sample": "en-conflicts.md",
+      "characters": 621,
+      "tokens": 241
+    },
+    {
+      "sample": "en-guide.md",
+      "characters": 2087,
+      "tokens": 686
+    },
+    {
+      "sample": "en-large-docs.md",
+      "characters": 2908,
+      "tokens": 976
+    },
+    {
+      "sample": "manifests.txt",
+      "characters": 588,
+      "tokens": 279
+    },
+    {
+      "sample": "pack-basic.md",
+      "characters": 4410,
+      "tokens": 2016
+    },
+    {
+      "sample": "pack-conflicts.md",
+      "characters": 2763,
+      "tokens": 1142
+    },
+    {
+      "sample": "pack-german.md",
+      "characters": 3702,
+      "tokens": 1749
+    },
+    {
+      "sample": "pack-injection.md",
+      "characters": 3585,
+      "tokens": 1502
+    },
+    {
+      "sample": "pack-large.md",
+      "characters": 5659,
+      "tokens": 2448
+    },
+    {
+      "sample": "resume-basic.txt",
+      "characters": 5071,
+      "tokens": 2283
+    },
+    {
+      "sample": "text-de-prose.md",
+      "characters": 1842,
+      "tokens": 895
+    },
+    {
+      "sample": "text-en-prose.md",
+      "characters": 1587,
+      "tokens": 486
+    },
+    {
+      "sample": "text-markdown.md",
+      "characters": 1220,
+      "tokens": 558
+    }
+  ]
+}

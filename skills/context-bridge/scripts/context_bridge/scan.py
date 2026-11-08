@@ -13,14 +13,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import gitrun, injection, policy, redact, safepath
+from . import gitrun, injection, policy, redact, safepath, tokens
 from .config import Config, load_config
 from .errors import EXIT_OK, EXIT_WARNINGS, PolicyViolation, UnsafePathError
 
@@ -120,11 +119,6 @@ class ScanReport:
         }
 
 
-def estimate_tokens(text: str) -> int:
-    """Rough token estimate (characters / 4); a tokenizer is not in the standard library."""
-    return math.ceil(len(text) / 4)
-
-
 def _walk(root: Path, deny: policy.DenyRoots, report: ScanReport) -> list[str]:
     files: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
@@ -196,7 +190,7 @@ def _read_and_add(
             origin=origin,
             size=content.size,
             sha256=content.sha256,
-            estimated_tokens=estimate_tokens(clean),
+            estimated_tokens=tokens.estimate(clean),
             valid_utf8=valid,
             via_symlink=content.via_symlink,
             secrets=secrets,

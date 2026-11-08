@@ -13,7 +13,7 @@ import helpers
 import packtools
 from helpers import REPO_ROOT
 
-from context_bridge import pack
+from context_bridge import pack, tokens
 
 if "cb_quality_evaluate" in sys.modules:
     evaluate = sys.modules["cb_quality_evaluate"]
@@ -66,18 +66,26 @@ class GateTests(unittest.TestCase):
 
     def test_no_regression_against_the_baseline(self) -> None:
         baseline = evaluate.load_baseline()
-        self.assertEqual({r["case"] for r in results()}, set(baseline))
+        self.assertEqual(baseline.get("estimator"), tokens.ESTIMATOR)  # measured with the estimate in use
+        self.assertEqual({r["case"] for r in results()}, set(baseline) - {"estimator"})
         self.assertEqual(evaluate.compare_baseline(results(), baseline), [])
 
 
 class MeasuredPropertyTests(unittest.TestCase):
-    def test_1_facts_and_decisions_are_complete_at_the_reference_budget(self) -> None:
+    def test_1_decisions_complete_and_facts_complete_or_visibly_partial_at_the_reference_budget(self) -> None:
+        # With real token counts the large case needs about 5900 tokens for every point. At its reference
+        # budget of 4000 it may leave out facts of the lowest criticality, but only when the pack says so.
         for case in CASE_NAMES:
             ref = reference(case)
             for category in ("decision", "fact"):
                 found, total = ref["by_category"].get(category, [0, 0])
                 with self.subTest(case=case, category=category):
-                    self.assertEqual(found, total, ref["missing"])
+                    if category == "decision" or case != "large":
+                        self.assertEqual(found, total, ref["missing"])
+                        continue
+                    missing = [v for v in ref["items"] if v["category"] == category and not v["found"]]
+                    self.assertTrue(all(v["criticality"] == "normal" for v in missing), missing)
+                    self.assertEqual(ref["coverage"], "partial")
 
     def test_2_goals_constraints_and_next_steps_survive_every_soft_budget(self) -> None:
         for r in runs(mode="soft"):
@@ -109,7 +117,7 @@ class MeasuredPropertyTests(unittest.TestCase):
         small = [reference(c) for c in CASE_NAMES if c != "large"]
         # Honest finding: for tiny projects the pack is larger than its sources (fixed overhead).
         self.assertTrue(all(r["compression"] > 1 for r in small))
-        self.assertTrue(all(r["tokens"] <= 1200 for r in small))
+        self.assertTrue(all(r["tokens"] <= r["budget"] for r in small))  # and they fit the reference budget
 
     def test_5_facts_assumptions_and_unverifiable_session_notes_are_told_apart(self) -> None:
         for r in results():

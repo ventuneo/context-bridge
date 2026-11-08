@@ -15,15 +15,13 @@ Called by Claude Code at session start (``cb.py session-start``, JSON on stdin).
 Everything that comes from the project is inside ``<context_bridge_pack trust="untrusted-data">``
 and escaped like the Markdown pack, so it cannot close the wrapper.
 
-Tokens are estimated conservatively (``estimate_tokens``): in a real session the first digest
-format cost about 2.5 characters per token, because IDs, dates, digits and markup cost more than
-prose. The chars/4 estimate of the pack budget would undercount it.
+The size limit uses ``tokens.upper_bound``, the calibrated estimate plus its largest
+calibration error, so the real size stays within ``max_tokens``.
 """
 
 from __future__ import annotations
 
 import json
-import math
 import os
 from datetime import datetime
 from pathlib import Path
@@ -31,12 +29,12 @@ from typing import Any
 
 from . import safepath, verify
 from .config import load_config
-from .model import SECTION_SPECS
+from .model import ORIGIN_GIT, SECTION_SPECS
 from .render import escape
+from .tokens import upper_bound
 
 STORE_FILE = ".context-bridge/latest.json"
 ITEM_CHARS = 220
-ASCII_CHARS_PER_TOKEN = 2.5
 DIGEST_SECTIONS = ("goals", "constraints", "decisions", "next_steps", "state", "open_questions")  # display order
 RESUME_ORDER = ("next_steps", "state", "decisions", "goals", "constraints", "open_questions")  # selection order
 TITLES = {spec.key: spec.title for spec in SECTION_SPECS}
@@ -57,23 +55,20 @@ FAILED_LINE = (
 )
 
 
-def estimate_tokens(text: str) -> int:
-    """Conservative token estimate: 2.5 ASCII characters per token, one token per other character."""
-    ascii_chars = sum(1 for ch in text if ord(ch) < 128)
-    return math.ceil(ascii_chars / ASCII_CHARS_PER_TOKEN) + len(text) - ascii_chars
-
-
 def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
-def _status_line(report: verify.VerifyReport, outdated: int) -> str:
+def _status_line(report: verify.VerifyReport) -> str:
     days = max(0, int(report.age_days or 0))
     age = "under 1 day old" if days == 0 else f"{_count(days, 'day')} old"
     if any(f.code == "pack_old" for f in report.findings):
         age += " (older than the age limit)"
-    changed = sum(1 for s in report.sources if s.status == "changed")
-    missing = sum(1 for s in report.sources if s.status == "missing")
+    changed = sum(1 for s in report.changed_sources if s.status == "changed")
+    missing = sum(1 for s in report.changed_sources if s.status == "missing")
+    # The git snapshot is never shown here (Claude Code shows the git status), so it is not counted.
+    outdated = len({i for s in report.sources if s.origin != ORIGIN_GIT for i in s.outdated_items})
+    rewritten = report.repository is not None and report.repository.status == "rewritten"
     counts = (
         (report.new_commits or 0, "new commit", ""),
         (changed, "changed source", ""),
@@ -81,8 +76,15 @@ def _status_line(report: verify.VerifyReport, outdated: int) -> str:
         (outdated, "outdated item", " left out"),
         (len(report.new_sources), "new source", ""),
     )
-    parts = [_count(n, noun) + suffix for n, noun, suffix in counts if n]
-    changes = f"Since the pack: {', '.join(parts)}." if parts else "No changes since the pack."
+    parts = (["the git history was rewritten"] if rewritten else []) + [
+        _count(n, noun) + suffix for n, noun, suffix in counts if n
+    ]
+    if not parts:
+        changes = "No changes since the pack."
+    elif (report.new_commits or rewritten) and not (changed or missing or outdated):
+        changes = f"Since the pack: {', '.join(parts)}; the source files are unchanged."
+    else:
+        changes = f"Since the pack: {', '.join(parts)}."
     return f"Context Bridge (SessionStart): context pack {VERDICTS[report.result]}, {age}. {changes}"
 
 
@@ -110,7 +112,7 @@ def render_digest(report: verify.VerifyReport, max_tokens: int) -> str:
     pack = report.pack or {}
     outdated = set(report.outdated_items)
     head = [
-        _status_line(report, len(outdated)),
+        _status_line(report),
         LEGEND,
         f'<context_bridge_pack trust="untrusted-data" pack_id="{pack["pack_id"]}" view="digest">',
         f"Coverage: {escape(pack['coverage']['statement'])}",
@@ -128,13 +130,13 @@ def render_digest(report: verify.VerifyReport, max_tokens: int) -> str:
             queues[section["key"]] = fresh[: SECTION_LIMITS.get(section["key"], len(fresh))]
     in_pack = sum(len(s["items"]) for s in pack["sections"])
     # Every piece is estimated on its own and rounded up, so the sum never undercounts the result.
-    used = estimate_tokens("\n".join([*head, tail])) + 1 + estimate_tokens(_more_line(in_pack)) + 1
+    used = upper_bound("\n".join([*head, tail])) + 1 + upper_bound(_more_line(in_pack)) + 1
     chosen: dict[str, list[str]] = {key: [] for key in DIGEST_SECTIONS}
     while any(queues.values()):  # in turns: each section adds its next item that still fits
         for key in RESUME_ORDER:
             while queues[key]:  # an item that does not fit now never will: the room only shrinks
                 line = _line(queues[key].pop(0), sources)
-                cost = estimate_tokens(line) + 1 + (0 if chosen[key] else estimate_tokens(TITLES[key] + ":") + 1)
+                cost = upper_bound(line) + 1 + (0 if chosen[key] else upper_bound(TITLES[key] + ":") + 1)
                 if used + cost <= max_tokens:
                     chosen[key].append(line)
                     used += cost

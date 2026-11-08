@@ -10,8 +10,9 @@
    For an *unchanged* file, every item must be re-derivable by the same extractor;
    an item that is not is reported as forged (``item_not_in_source``). This also
    catches tampering where an attacker recomputed the hashes. For a *changed* file,
-   items that no longer appear are listed as outdated. Git commits, the file list
-   and the pack age are checked as well.
+   items that no longer appear are listed as outdated. The file list and the pack age are
+   checked as well. Repository progress (new commits, another branch, uncommitted work) is
+   reported on its own and never makes a source file changed: files are compared by content.
 
 Exit codes: 0 ok, 1 warnings, 2 errors (the pack must not be used), 3 the pack records
 critical information loss.
@@ -56,6 +57,7 @@ _DELIMITER = re.compile(r"<\s*/?\s*context_bridge_pack", re.IGNORECASE)
 _CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 _COMMIT_ITEM = re.compile(r"^Recent commit ([0-9a-f]{4,40}) \((\d{4}-\d{2}-\d{2})\): (.*)$")
 _UNSAFE_REASONS = {policy.SECRET_FILE, policy.SECRET_DIR, policy.PERSONAL_FILE, policy.NOISE_DIR}
+FILE_ORIGINS = (ORIGIN_FILE, ORIGIN_EXTERNAL)
 
 
 class PackLoadError(ContextBridgeError):
@@ -76,7 +78,7 @@ class SourceStatus:
     id: str
     origin: str
     label: str
-    status: str  # fresh | changed | missing | not_checked | not_checkable
+    status: str  # files: fresh | changed | missing; git: fresh | progressed | rewritten; not_checked | not_checkable
     outdated_items: list[str] = field(default_factory=list)
     reason: str | None = None
 
@@ -109,6 +111,15 @@ class VerifyReport:
         return sorted(ids, key=lambda i: int(i[1:]))
 
     @property
+    def changed_sources(self) -> list[SourceStatus]:
+        """Source files whose content changed or that are gone; repository progress does not count."""
+        return [s for s in self.sources if s.origin in FILE_ORIGINS and s.status in ("changed", "missing")]
+
+    @property
+    def repository(self) -> SourceStatus | None:
+        return next((s for s in self.sources if s.origin == ORIGIN_GIT), None)
+
+    @property
     def exit_code(self) -> int:
         severities = {f.severity for f in self.findings}
         if ERROR in severities or self.pack is None:
@@ -136,6 +147,7 @@ class VerifyReport:
             "findings": [asdict(f) for f in self.findings],
             "sources": [asdict(s) for s in self.sources],
             "outdated_items": self.outdated_items,
+            "repository": self.repository.status if self.repository else None,
             "new_commits": self.new_commits,
             "commits_since": [{"sha": sha, "subject": subject} for sha, subject in self.commits_since],
             "new_sources": self.new_sources,
@@ -430,6 +442,13 @@ def _check_git(
     redact_pii: bool,
     strict: bool,
 ) -> None:
+    """Check the git snapshot. Repository progress is not a change of the pack's sources.
+
+    The git source is ``fresh``, ``progressed`` (new commits on top of the pack's commit, or only
+    the branch or the uncommitted changes differ) or ``rewritten`` (the pack's commit is no longer
+    part of the history). Progress is information; only a rewritten history is a warning and makes
+    the git snapshot item outdated. Source files are compared by content in ``_check_freshness``.
+    """
     sid, label, ref = source["id"], source["label"], source.get("ref")
     if ref is not None and not gitinfo.GIT_REF_RE.match(ref):
         report.add(ERROR, "invalid_git_ref", "the pack contains an invalid git reference", sid)
@@ -468,23 +487,36 @@ def _check_git(
             forged,
         )
     current_status = _sanitised(gitinfo.git_items(info, sid)[:1], redact_pii)
-    outdated = [
+    snapshot_differs = [
         item["id"]
         for section, item in items
         if item["extractor"] == "git.status" and not _reproduced(item, current_status, section, exact=False)
     ]
     head = info.head or ""
     moved = bool(ref) and not (head.startswith(ref) or ref.startswith(head))
-    if moved and ref and gitinfo.ref_exists(root, ref) and gitinfo.is_ancestor(root, ref):
+    if moved and not (ref and gitinfo.ref_exists(root, ref) and gitinfo.is_ancestor(root, ref)):
+        report.sources.append(SourceStatus(sid, ORIGIN_GIT, label, "rewritten", snapshot_differs))
+        report.add(
+            WARNING, "git_history_rewritten", "the pack's commit is no longer part of the current history", sid,
+            snapshot_differs,
+        )  # fmt: skip
+        return
+    if moved and ref:
         report.new_commits, report.commits_since = gitinfo.commits_since(root, ref)
-    elif moved:
-        report.add(WARNING, "git_history_rewritten", "the pack's commit is no longer part of the current history", sid)
     elif not ref and head:  # the repository had no commits when the pack was made
         report.new_commits = int(gitrun.run_git(root, ["rev-list", "--count", "HEAD"]).strip() or 0)
-    status = "changed" if (moved or outdated or (not ref and head)) else "fresh"
-    report.sources.append(SourceStatus(sid, ORIGIN_GIT, label, status, outdated))
-    if status == "changed":
-        report.add(WARNING, "source_changed", f"git: {report.new_commits} new commit(s) since the pack", sid, outdated)
+    status = "progressed" if (report.new_commits or snapshot_differs) else "fresh"
+    report.sources.append(SourceStatus(sid, ORIGIN_GIT, label, status))
+    if status == "progressed":
+        what = (
+            f"{report.new_commits} new commit(s)"
+            if report.new_commits
+            else "the branch or the uncommitted changes differ from the pack"
+        )
+        report.add(
+            INFO, "repository_progressed", f"repository progress since the pack: {what} (not a change of the sources)",
+            sid,
+        )  # fmt: skip
 
 
 # ---------------------------------------------------------------------------
@@ -538,15 +570,24 @@ def format_text(report: VerifyReport) -> str:
     lines.append(f"Result: {words[report.result]}")
     if pack.get("coverage"):
         lines.append(f"Coverage: {safe(pack['coverage']['statement'])}")
-    if report.sources:
-        counts = Counter(s.status for s in report.sources)
-        lines.append("Sources: " + ", ".join(f"{n} {status}" for status, n in sorted(counts.items())))
-        for s in report.sources:
-            if s.status in ("changed", "missing"):
-                extra = f" (outdated: {', '.join(s.outdated_items)})" if s.outdated_items else ""
-                lines.append(f"  {s.id} {safe(s.label)}: {s.status}{extra}")
-    if report.new_commits:
-        lines.append(f"git: {report.new_commits} new commit(s) since the pack")
+    files = [s for s in report.sources if s.origin in FILE_ORIGINS]
+    if files:
+        counts = Counter(s.status for s in files)
+        lines.append("Source files: " + ", ".join(f"{n} {status}" for status, n in sorted(counts.items())))
+        for s in report.changed_sources:
+            extra = f" (outdated: {', '.join(s.outdated_items)})" if s.outdated_items else ""
+            lines.append(f"  {s.id} {safe(s.label)}: {s.status}{extra}")
+    for s in report.sources:
+        if s.origin == ORIGIN_FILE_LIST and s.status == "changed":
+            lines.append(f"File structure: changed (outdated: {', '.join(s.outdated_items)})")
+    repo = report.repository
+    if repo is not None:
+        lines.append("Repository: " + {
+            "fresh": "unchanged since the pack",
+            "progressed": f"{report.new_commits} new commit(s) since the pack" if report.new_commits
+            else "the branch or the uncommitted changes differ from the pack",
+            "rewritten": "the pack's commit is no longer part of the current history",
+        }.get(repo.status, f"not checked ({repo.reason})"))  # fmt: skip
     if report.findings:
         lines.append("Findings:")
         lines += [f"  {f.severity}: {f.code} - {safe(f.detail)}" for f in report.findings]

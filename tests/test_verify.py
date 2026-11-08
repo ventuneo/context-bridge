@@ -119,13 +119,65 @@ class GitTests(VerifyTestCase):
         report = self.verify()
         self.assertEqual(report.new_commits, 1)
         self.assertEqual([subject for _sha, subject in report.commits_since], ["Add notes"])
-        self.assertEqual(self.status(report, "git").status, "changed")
+        self.assertEqual(self.status(report, "git").status, "progressed")
+
+    def file_statuses(self, report: verify.VerifyReport) -> dict[str, str]:
+        return {s.label: s.status for s in report.sources if s.origin == "file"}
+
+    def test_a_new_commit_alone_changes_no_source(self) -> None:
+        # Regression: a commit used to report the git source as changed and its snapshot item as outdated.
+        self.make_pack()
+        before = self.file_statuses(self.verify())
+        self.project.git("commit", "-q", "--allow-empty", "-m", "Empty commit")
+        report = self.verify()
+        self.assertEqual(set(before.values()), {"fresh"})
+        self.assertEqual(self.file_statuses(report), before)
+        self.assertEqual((report.new_commits, report.changed_sources, report.outdated_items), (1, [], []))
+        self.assertEqual(self.status(report, "git").status, "progressed")
+        self.assertNotIn("source_changed", self.codes(report))
+        self.assertIn("repository_progressed", self.codes(report, "info"))
+        self.assertEqual((report.exit_code, report.to_dict()["repository"]), (0, "progressed"))
+        text = verify.format_text(report)
+        self.assertIn("Repository: 1 new commit(s) since the pack", text)
+        self.assertIn(f"Source files: {len(before)} fresh", text)
+
+    def test_a_commit_that_edits_a_source_changes_only_that_source(self) -> None:
+        result = self.make_pack()
+        readme = (self.root / "README.md").read_text(encoding="utf-8")
+        self.project.write(
+            "README.md", readme.replace("- Build the sync queue.", "- Build the sync queue with retries.")
+        )
+        self.project.git("commit", "-q", "-am", "Refine the next step")
+        report = self.verify()
+        self.assertEqual([s.label for s in report.changed_sources], ["README.md"])
+        self.assertEqual(report.outdated_items, [item(result.pack, "Build the sync queue")["id"]])
+        self.assertEqual((self.status(report, "git").status, report.new_commits), ("progressed", 1))
+        self.assertEqual(report.exit_code, 1)
+
+    def test_uncommitted_work_outside_the_sources_is_progress_not_a_change(self) -> None:
+        self.make_pack()
+        self.project.write("src/app.py", "print(2)\n")  # code is not a pack source
+        report = self.verify()
+        self.assertEqual((report.new_commits, report.changed_sources, report.outdated_items), (0, [], []))
+        self.assertEqual(self.status(report, "git").status, "progressed")
+        self.assertIn("Repository: the branch or the uncommitted changes differ", verify.format_text(report))
+        self.assertEqual(report.exit_code, 0)
+
+    def test_unchanged_repository_is_fresh(self) -> None:
+        self.make_pack()
+        report = self.verify()
+        self.assertEqual((self.status(report, "git").status, report.new_commits), ("fresh", 0))
+        self.assertNotIn("repository_progressed", self.codes(report))
 
     def test_rewritten_history_is_reported(self) -> None:
         self.make_pack()
         self.project.git("commit", "-q", "--amend", "-m", "rewritten")
         report = self.verify()
         self.assertIn("git_history_rewritten", self.codes(report, "warning"))
+        git = self.status(report, "git")
+        self.assertEqual(git.status, "rewritten")
+        self.assertEqual(len(git.outdated_items), 1)  # the snapshot names a commit that is gone
+        self.assertEqual(report.changed_sources, [])  # the files themselves did not change
 
     def test_forged_commit_subject_is_an_error(self) -> None:
         self.make_pack()

@@ -85,6 +85,18 @@ class NewSessionTests(ResumeTestCase):
         self.assertIn(f"Outdated items: {outdated}", footer)
         self.assertEqual(report.exit_code, 1)
 
+    def test_a_new_commit_is_repository_progress_not_a_source_change(self) -> None:
+        self.session_one()
+        self.project.git("commit", "-q", "--allow-empty", "-m", "Empty commit")
+        report, output = self.resume()
+        inside = self.assertWrapped(output)
+        self.assertIn("- Repository: 1 new commit(s) since the pack:", inside)
+        self.assertIn("- Source files: none changed. Repository changes alone do not make items outdated.", inside)
+        self.assertNotIn("- Changed:", inside)
+        header = output[: output.index(OPEN)]
+        self.assertIn("1 new commit(s) · 0 changed and 0 missing source file(s) · 0 outdated item(s)", header)
+        self.assertEqual(report.exit_code, 0, report.findings)
+
     def test_hostile_commit_subjects_stay_inside_the_wrapper(self) -> None:
         self.session_one()
         self.project.git(

@@ -102,7 +102,11 @@ python3 -I quality/run.py --check
   **critical information loss** (banner in the pack, message on stderr, exit code 3).
 - **Coverage:** every pack states whether all extracted items are kept, the pack is `PARTIAL`, or
   it records `CRITICAL INFORMATION LOSS`; `verify` recomputes it. A pack is never called complete:
-  extraction is selective. The budget covers the whole rendered Markdown.
+  extraction is selective. The budget covers the whole rendered Markdown. Tokens are counted
+  with an estimate calibrated against real Claude token counts (mean error about 4 %; see
+  [docs/quality.md](docs/quality.md)).
+- **Freshness:** source files are compared by content. New commits are reported as repository
+  progress and never make an unchanged file or its items outdated.
 - Every item carries its source (file, line range, SHA-256) and a status:
   `fact`, `assumption` or `uncertain`. Duplicates are merged and their sources kept.
 - **Consent:** new sources are never packed until approved (`--approve` or

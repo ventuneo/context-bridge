@@ -31,7 +31,6 @@ from .budget import (
     Selection,
     coverage_of,
     deduplicate,
-    estimate_tokens,
     priority_key,
     select,
     tier_counts,
@@ -58,6 +57,8 @@ from .model import (
     Source,
 )
 from .render import TRUST_NOTICE, render_markdown
+from .tokens import ESTIMATOR
+from .tokens import estimate as estimate_tokens
 
 STRUCTURE_REASONS = (policy.NOT_IN_ALLOWLIST, scan_mod.BINARY, safepath.TOO_LARGE, scan_mod.TOTAL_LIMIT)
 PREVIEW_CHARS = 80
@@ -328,7 +329,7 @@ def build(
             "budget": {
                 "max_tokens": budget,
                 "estimated_tokens": selection.estimated_tokens,
-                "estimator": "markdown characters / 4",
+                "estimator": ESTIMATOR,
                 "hard_budget": hard_budget,
                 "exceeded_to_protect_critical": selection.exceeded_to_protect_critical,
                 "duplicates_removed": duplicates,
@@ -360,15 +361,19 @@ def build(
         pack["warnings"].extend(extra)
         for warning in pack["warnings"]:  # details can contain file names: keep them on one clean line
             warning["detail"] = clean_meta(warning["detail"], redact_pii)
-        # Report the size of what is actually rendered, not only the item estimate.
+        # Report the size of what is actually rendered, not only the item estimate. The pack id comes
+        # from the fingerprint, which includes this size, so a placeholder id is used while the size
+        # settles; otherwise every new id would change the estimate and the fingerprint again.
+        stamp = created_at.replace("-", "").replace(":", "")
+        pack["pack_id"] = f"{stamp}-000000"
         for _ in range(4):
-            fp = fingerprint(pack)
-            pack["pack_id"] = created_at.replace("-", "").replace(":", "") + "-" + fp[:6]
-            md = render_markdown(pack)
-            tokens = estimate_tokens(md)
-            if tokens == pack["budget"]["estimated_tokens"]:
+            size = estimate_tokens(render_markdown(pack))
+            if size == pack["budget"]["estimated_tokens"]:
                 break
-            pack["budget"]["estimated_tokens"] = tokens
+            pack["budget"]["estimated_tokens"] = size
+        fp = fingerprint(pack)
+        pack["pack_id"] = f"{stamp}-{fp[:6]}"
+        md = render_markdown(pack)
         pack["integrity"] = {
             "algorithm": "sha256",
             "fingerprint": fp,
@@ -377,13 +382,25 @@ def build(
         }
         return pack, md, selection, loss, warnings, pending
 
-    # The budget applies to the rendered Markdown: shrink the item budget until the whole pack fits.
+    # The budget applies to the rendered Markdown. The selection only estimates the fixed parts, so the
+    # item budget is corrected from the rendered size: down until the pack fits, then up again while
+    # room is left and items are still left out.
     item_budget, extra = budget, []
+    best = None
     for _attempt in range(10):
-        pack, md, selection, loss, warnings, pending = assemble(item_budget, extra)
+        result = assemble(item_budget, extra)
+        pack, md, selection, loss, warnings, pending = result
         size = pack["budget"]["estimated_tokens"]
         only_critical = all(i.tier == CRITICAL for i in selection.kept)
         if size <= budget or (not hard_budget and only_critical):
+            improved = best is None or len(selection.kept) > len(best[2].kept)
+            if improved:
+                best = result
+            if not improved or size >= budget or not selection.dropped:
+                break
+            item_budget += budget - size
+            continue
+        if best is not None:  # using the room overshot the budget: keep the largest pack that fit
             break
         if item_budget <= HEADER_TOKENS:
             extra = [
@@ -393,9 +410,10 @@ def build(
                     "detail": f"the fixed parts of this pack need ~{size} tokens; the budget of {budget} cannot be met",
                 }
             ]
-            pack, md, selection, loss, warnings, pending = assemble(item_budget, extra)
+            best = assemble(item_budget, extra)
             break
         item_budget = max(HEADER_TOKENS, item_budget - (size - budget))
+    pack, md, selection, loss, warnings, pending = best or result
 
     paths = None
     if not dry_run:

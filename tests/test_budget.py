@@ -4,7 +4,7 @@ import unittest
 
 import helpers  # noqa: F401  (puts the package on sys.path)
 
-from context_bridge.budget import MAX_CHARS, deduplicate, normalise, select
+from context_bridge.budget import HEADER_TOKENS, MAX_CHARS, deduplicate, normalise, select
 from context_bridge.model import CRITICAL, Item
 
 
@@ -55,11 +55,12 @@ class SelectTests(unittest.TestCase):
         return items
 
     def test_context_is_dropped_before_critical_and_important(self) -> None:
-        selection = select(self.mixed(), budget=400)
+        budget = HEADER_TOKENS + 450  # room for the five important items, not for all 30 structure lines
+        selection = select(self.mixed(), budget=budget)
         kept_sections = {i.section for i in selection.kept}
         self.assertTrue({"goals", "constraints", "decisions", "next_steps", "state"} <= kept_sections)
-        self.assertTrue(all(i.section == "structure" for i in selection.dropped))
-        self.assertLessEqual(selection.estimated_tokens, 400)
+        self.assertTrue(selection.dropped and all(i.section == "structure" for i in selection.dropped))
+        self.assertLessEqual(selection.estimated_tokens, budget)
         self.assertEqual(selection.critical_loss, [])
         self.assertEqual(selection.retention["structure"]["dropped"], len(selection.dropped))
 
@@ -72,8 +73,9 @@ class SelectTests(unittest.TestCase):
 
     def test_hard_budget_reports_critical_loss(self) -> None:
         items = [item("goals", f"Goal number {n} with enough words to cost tokens.", order=n) for n in range(40)]
-        selection = select(items, budget=300, hard_budget=True)
-        self.assertLessEqual(selection.estimated_tokens, 300)
+        budget = HEADER_TOKENS + 250  # room for a few of the forty goals
+        selection = select(items, budget=budget, hard_budget=True)
+        self.assertLessEqual(selection.estimated_tokens, budget)
         self.assertGreater(len(selection.critical_loss), 0)
         self.assertTrue(all(reason == "dropped" for _i, reason in selection.critical_loss))
         self.assertEqual(selection.kept[0].text, "Goal number 0 with enough words to cost tokens.")

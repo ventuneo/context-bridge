@@ -1,0 +1,26 @@
+[project]
+name = "orchard-planner"
+requires-python = ">=3.11"
+dependencies = ["psycopg", "fastapi"]
+
+{
+  "name": "orchard-logistics",
+  "description": "Office dashboard and tooling for Orchard Logistics.",
+  "scripts": {"dev": "vite", "build": "vite build", "test": "vitest run", "lint": "eslint ."},
+  "dependencies": {"vue": "^3.5.0", "chart.js": "^4.4.0"}
+}
+
+install:
+	python3 -m venv .venv
+dev:
+	npm run dev
+test:
+	python3 -m unittest
+lint:
+	ruff check .
+test-integration:
+	python3 -m unittest discover -s tests/integration
+backup:
+	./scripts/backup.sh
+restore:
+	./scripts/restore.sh

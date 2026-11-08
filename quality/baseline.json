@@ -1,4 +1,5 @@
 {
+  "estimator": "calibrated-v1",
   "basic": {
     "500-soft": {
       "score": 71.2,
@@ -6,18 +7,18 @@
       "critical_total": 14
     },
     "500-hard": {
-      "score": 10.2,
-      "critical_found": 2,
+      "score": 0.0,
+      "critical_found": 0,
       "critical_total": 14
     },
     "1000-soft": {
-      "score": 98.3,
+      "score": 71.2,
       "critical_found": 14,
       "critical_total": 14
     },
     "1000-hard": {
-      "score": 98.3,
-      "critical_found": 14,
+      "score": 20.3,
+      "critical_found": 4,
       "critical_total": 14
     },
     "2000-soft": {
@@ -43,22 +44,22 @@
   },
   "conflicts": {
     "500-soft": {
-      "score": 73.5,
+      "score": 58.8,
       "critical_found": 6,
       "critical_total": 6
     },
     "500-hard": {
-      "score": 73.5,
-      "critical_found": 6,
+      "score": 0.0,
+      "critical_found": 0,
       "critical_total": 6
     },
     "1000-soft": {
-      "score": 100.0,
+      "score": 85.3,
       "critical_found": 6,
       "critical_total": 6
     },
     "1000-hard": {
-      "score": 100.0,
+      "score": 85.3,
       "critical_found": 6,
       "critical_total": 6
     },
@@ -90,18 +91,18 @@
       "critical_total": 15
     },
     "500-hard": {
-      "score": 20.0,
-      "critical_found": 4,
+      "score": 0.0,
+      "critical_found": 0,
       "critical_total": 15
     },
     "1000-soft": {
-      "score": 100.0,
+      "score": 75.0,
       "critical_found": 15,
       "critical_total": 15
     },
     "1000-hard": {
-      "score": 100.0,
-      "critical_found": 15,
+      "score": 25.0,
+      "critical_found": 5,
       "critical_total": 15
     },
     "2000-soft": {
@@ -132,18 +133,18 @@
       "critical_total": 9
     },
     "500-hard": {
-      "score": 26.5,
-      "critical_found": 3,
+      "score": 0.0,
+      "critical_found": 0,
       "critical_total": 9
     },
     "1000-soft": {
-      "score": 100.0,
+      "score": 91.2,
       "critical_found": 9,
       "critical_total": 9
     },
     "1000-hard": {
-      "score": 100.0,
-      "critical_found": 9,
+      "score": 47.1,
+      "critical_found": 5,
       "critical_total": 9
     },
     "2000-soft": {
@@ -174,8 +175,8 @@
       "critical_total": 37
     },
     "500-hard": {
-      "score": 4.3,
-      "critical_found": 2,
+      "score": 0.0,
+      "critical_found": 0,
       "critical_total": 37
     },
     "1000-soft": {
@@ -184,27 +185,27 @@
       "critical_total": 37
     },
     "1000-hard": {
-      "score": 41.0,
-      "critical_found": 19,
+      "score": 12.9,
+      "critical_found": 6,
       "critical_total": 37
     },
     "2000-soft": {
-      "score": 97.1,
+      "score": 81.3,
       "critical_found": 37,
       "critical_total": 37
     },
     "2000-hard": {
+      "score": 49.6,
+      "critical_found": 23,
+      "critical_total": 37
+    },
+    "4000-soft": {
       "score": 97.1,
       "critical_found": 37,
       "critical_total": 37
     },
-    "4000-soft": {
-      "score": 100.0,
-      "critical_found": 37,
-      "critical_total": 37
-    },
     "4000-hard": {
-      "score": 100.0,
+      "score": 97.1,
       "critical_found": 37,
       "critical_total": 37
     }

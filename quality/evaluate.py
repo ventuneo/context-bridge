@@ -52,6 +52,7 @@ sys.path.insert(0, str(REPO / "skills" / "context-bridge" / "scripts"))
 
 from context_bridge import pack as pack_mod  # noqa: E402
 from context_bridge import scan as scan_mod  # noqa: E402
+from context_bridge import tokens  # noqa: E402
 from context_bridge import verify as verify_mod  # noqa: E402
 from context_bridge.budget import normalise  # noqa: E402
 
@@ -344,6 +345,11 @@ def baseline_key(result: dict[str, Any]) -> str:
 
 
 def compare_baseline(results: list[dict[str, Any]], baseline: dict[str, Any]) -> list[str]:
+    measured_with = baseline.get("estimator", "markdown characters / 4")
+    if baseline and measured_with != tokens.ESTIMATOR:
+        # Budgets mean something else with another token estimate: compare only after a deliberate update.
+        return [f"the baseline was measured with the token estimate '{measured_with}', the current one is "
+                f"'{tokens.ESTIMATOR}': run --update-baseline and document the change in docs/quality.md"]  # fmt: skip
     failures = []
     for r in results:
         old = baseline.get(r["case"], {}).get(baseline_key(r))
@@ -358,7 +364,7 @@ def compare_baseline(results: list[dict[str, Any]], baseline: dict[str, Any]) ->
 
 
 def baseline_from(results: list[dict[str, Any]]) -> dict[str, Any]:
-    data: dict[str, Any] = {}
+    data: dict[str, Any] = {"estimator": tokens.ESTIMATOR}
     for r in results:
         data.setdefault(r["case"], {})[baseline_key(r)] = {
             "score": r["score"],

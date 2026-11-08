@@ -19,24 +19,40 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 from .model import CONTEXT, CRITICAL, FLAG_TRUNCATED, IMPORTANT, SECTION_BY_KEY, SECTION_INDEX, TIER_RANK, Item
+from .render import TRUST_NOTICE
+from .tokens import estimate
 
 DEFAULT_BUDGET = 2000
 MIN_BUDGET = 200
-HEADER_TOKENS = 120  # title, trust notice, status line
-SOURCE_ROW_TOKENS = 18  # one row in the sources table
-ITEM_OVERHEAD_CHARS = 40  # bullet, status label and source reference
+# Fixed parts of the rendered pack, estimated from representative lines (see render.py).
+HEADER_TOKENS = estimate(
+    "\n".join(
+        [
+            "<!-- context-bridge pack 1.0 · 20261108T120000Z-0a1b2c -->",
+            "# Context pack: example-project",
+            f"> **{TRUST_NOTICE}**",
+            "> **Coverage:** PARTIAL: 12 of 48 extracted items were left out to fit the budget (context 12) and "
+            "0 were shortened. Extraction is selective as well.",
+            "created 2026-11-08T12:00:00Z · git main @ 0a1b2c3 · 0 uncommitted changes · ~2000 of 2000 tokens",
+            "Labels: [fact] stated in a source · [assumption] · [uncertain] hedged or open · (unverified) from the "
+            "session, not backed by a file.",
+            "## Sources",
+            "| ID | Origin | Source | SHA-256 |",
+            "|----|--------|--------|---------|",
+        ]
+    )
+    + "\n" * 10
+)
+SOURCE_ROW_TOKENS = estimate("| S12 | file | docs/decisions/0001-sqlite.md | 0a1b2c3d4e5f… |\n")
+ITEM_OVERHEAD_TOKENS = estimate("- [fact]  — S12 docs/notes.md:12-34\n")  # bullet, label, source reference
 MAX_CHARS = {CRITICAL: 2000, IMPORTANT: 500, CONTEXT: 300}
 SIMILARITY = 0.85  # Jaccard similarity of word sets for near-duplicates
 _STRIP = re.compile(r"[*_`~>#\[\]()|]")
 _WORD = re.compile(r"\w+")
 
 
-def estimate_tokens(text: str) -> int:
-    return math.ceil(len(text) / 4)
-
-
 def item_tokens(item: Item) -> int:
-    return math.ceil((len(item.text) + ITEM_OVERHEAD_CHARS) / 4)
+    return estimate(item.text) + ITEM_OVERHEAD_TOKENS
 
 
 def normalise(text: str) -> str:

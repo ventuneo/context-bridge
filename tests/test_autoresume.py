@@ -24,6 +24,7 @@ from helpers import REPO_ROOT, TempProject, isolated_env, snapshot
 from packtools import item, tamper
 
 from context_bridge import autoresume, pack, verify
+from context_bridge.tokens import upper_bound
 
 if "cb_quality_evaluate" in sys.modules:
     evaluate = sys.modules["cb_quality_evaluate"]
@@ -74,7 +75,7 @@ class SessionStartTests(HookTestCase):
             for title in ("Goals:", "Decisions:", "Next steps:"):
                 self.assertIn(title, out)
             self.assertIn("Write tests for the queue. (unverified)", out)
-            self.assertLessEqual(autoresume.estimate_tokens(out), 400)
+            self.assertLessEqual(upper_bound(out), 400)
 
     def test_clear_and_compact_are_ignored_unless_configured(self) -> None:
         self.make_pack()
@@ -126,7 +127,7 @@ class FormatTests(HookTestCase):
         self.make_pack(handoff=json.dumps(handoff).encode())
         self.user_config("[hook]\nmax_tokens = 330\n")
         out = autoresume.digest(self.stdin())
-        self.assertLessEqual(autoresume.estimate_tokens(out), 330)
+        self.assertLessEqual(upper_bound(out), 330)
         self.assertNotIn("deliberately long", out)  # does not fit, so the next item of that section is used
         self.assertIn("Write tests for the queue.", out)
 
@@ -151,6 +152,20 @@ class ValidationTests(HookTestCase):
         self.assertIn("Since the pack: 1 changed source, 1 outdated item left out.", out)
         self.assertNotIn("- Build the sync queue.", out)
         self.assertIn(item(result.pack, "Write tests")["text"], out)
+
+    def test_repository_progress_is_not_reported_as_a_source_change(self) -> None:
+        self.project.git_init()
+        self.make_pack()
+        self.project.git("commit", "-q", "--allow-empty", "-m", "Empty commit")
+        first = autoresume.digest(self.stdin(), now=NOW + timedelta(hours=1)).splitlines()[0]
+        self.assertIn("context pack verified, under 1 day old.", first)
+        self.assertTrue(first.endswith("Since the pack: 1 new commit; the source files are unchanged."), first)
+        self.project.git("reset", "-q", "--hard", "HEAD~1")  # back to the pack's commit, then rewrite it
+        self.project.git("commit", "-q", "--amend", "--allow-empty", "-m", "Rewritten")
+        first = autoresume.digest(self.stdin(), now=NOW + timedelta(hours=1)).splitlines()[0]
+        self.assertTrue(
+            first.endswith("Since the pack: the git history was rewritten; the source files are unchanged.")
+        )
 
     def test_critical_loss_and_age_are_stated_first(self) -> None:
         goals = [{"text": f"Goal {n}: keep requirement number {n} intact.", "status": "fact"} for n in range(40)]
@@ -207,7 +222,7 @@ class BudgetAndPerformanceTests(unittest.TestCase):
                     out = autoresume.digest(stdin)
                     elapsed = time.perf_counter() - started
                     self.assertTrue(out.startswith("Context Bridge (SessionStart): context pack verified"))
-                    self.assertLessEqual(autoresume.estimate_tokens(out), 400)
+                    self.assertLessEqual(upper_bound(out), 400)
                     self.assertLess(elapsed, 2.0)  # measured around 0.05 s; generous for slow CI machines
                     report = verify.verify(root)
                     self.assertEqual(report.errors, [])
@@ -222,14 +237,15 @@ class BudgetAndPerformanceTests(unittest.TestCase):
             cfg.parent.mkdir(parents=True)
             cfg.write_text("[hook]\nmax_tokens = 300\n", encoding="utf-8")
             out = autoresume.digest(json.dumps({"cwd": str(project.root)}).encode())
-            self.assertLessEqual(autoresume.estimate_tokens(out), 300)
+            self.assertLessEqual(upper_bound(out), 300)
             self.assertRegex(out, r"\(\d+ more items? in the pack; resume shows them")
 
-    def test_token_estimate_is_conservative(self) -> None:
-        # In a real session the first digest format cost 586 tokens for 1466 characters (2.5 per token).
-        self.assertEqual(autoresume.estimate_tokens("a" * 25), 10)
-        self.assertEqual(autoresume.estimate_tokens("Schlüssel"), 5)  # 8 ASCII characters (4 tokens) plus 1 other
-        self.assertEqual(autoresume.estimate_tokens(""), 0)
+    def test_the_limit_uses_the_calibrated_upper_bound(self) -> None:
+        # A digest measured in a real session (quality/tokens/): its real size stays below the bound.
+        sample = REPO_ROOT / "quality" / "tokens" / "samples" / "digest-large.txt"
+        measured = json.loads((REPO_ROOT / "quality" / "tokens" / "measurements.json").read_text(encoding="utf-8"))
+        real = next(r["tokens"] for r in measured["samples"] if r["sample"] == sample.name)
+        self.assertLessEqual(real, upper_bound(sample.read_text(encoding="utf-8")))
 
 
 class InstalledHookTests(unittest.TestCase):
@@ -285,7 +301,7 @@ class InstalledHookTests(unittest.TestCase):
         elapsed = time.perf_counter() - started
         self.assertEqual(hook.returncode, 0)
         self.assertIn("Test the export job. (unverified)", hook.stdout)
-        self.assertLessEqual(autoresume.estimate_tokens(hook.stdout), 400)
+        self.assertLessEqual(upper_bound(hook.stdout), 400)
         self.assertLess(elapsed, 3.0)  # a fresh process including verify; measured around 0.2 s
         self.assertIn("context pack verified", self.run_hook("resume").stdout)
         self.assertEqual(self.run_hook("compact").stdout, "")

@@ -1,0 +1,32 @@
+{
+  "model": "claude-opus-5-5",
+  "measured_on": "2026-11-08",
+  "method": "claude -p, sample appended to a minimal system prompt; prompt tokens minus the same session without the sample, minus the separator (see quality/tokens/measure.py)",
+  "baseline_tokens": [
+    2883,
+    2883
+  ],
+  "separator_tokens": 10,
+  "samples": [
+    {
+      "sample": "pack-german.md",
+      "characters": 3702,
+      "tokens": 1749
+    },
+    {
+      "sample": "text-de-prose.md",
+      "characters": 1842,
+      "tokens": 895
+    },
+    {
+      "sample": "text-en-prose.md",
+      "characters": 1587,
+      "tokens": 486
+    },
+    {
+      "sample": "text-markdown.md",
+      "characters": 1220,
+      "tokens": 558
+    }
+  ]
+}
