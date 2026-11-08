@@ -44,7 +44,8 @@ $CB resume --root path/to/project                 # verified pack, wrapped as un
 file and, optionally, an auto-resume SessionStart hook: at startup and resume it verifies the
 latest pack and loads a short digest (default limit 400 tokens); with no pack, or a pack that fails
 verification, it loads nothing. It never writes and never creates packs. Settings in the user config:
-`[hook] sources = ["startup", "resume"]` and `max_tokens = 400`.
+`[hook] sources = ["startup", "resume"]` and `max_tokens = 400` (300 to 2000). Outdated items
+and what Claude Code loads itself (git status, the project's CLAUDE.md) are left out.
 
 ```sh
 $CB setup status --root .                                   # which CLAUDE.md files exist, what is protected

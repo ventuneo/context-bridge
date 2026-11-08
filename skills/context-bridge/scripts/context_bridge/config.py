@@ -23,7 +23,7 @@ Example user config::
 
     [hook]
     sources = ["startup", "resume"]  # session starts the optional auto-resume hook answers
-    max_tokens = 400                 # size limit of the digest it loads
+    max_tokens = 400                 # size limit of the digest it loads (300 to 2000)
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ DEFAULT_MAX_TOTAL_BYTES = 2 * 1024 * 1024
 _LIMIT_BOUNDS = {
     "max_file_bytes": (1, 16 * 1024 * 1024),
     "max_total_bytes": (1, 64 * 1024 * 1024),
-    "max_tokens": (100, 2000),
+    "max_tokens": (300, 2000),  # the status lines and the coverage alone take about 250
 }
 HOOK_SOURCES = ("startup", "resume", "clear", "compact")
 
