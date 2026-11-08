@@ -67,18 +67,22 @@ There is no package upload and no plugin-marketplace entry.
 3. Run the checks above, then tag, push the tag and create the release.
 4. Run the smoke test against the new tag.
 
-## Release notes for v0.2.0 (proposal)
+## Release notes for v0.2.0
 
 > **Context Bridge 0.2.0: Windows and WSL 2**
 >
 > - Windows 10 and 11: install with a directory junction (no administrator rights), `python` or
 >   `py -3` instead of `python3`, data in `%LOCALAPPDATA%` and `%APPDATA%`
 > - The SessionStart hook on Windows starts Python without a shell (exec form, Claude Code 2.1.139
->   or newer); on macOS and Linux it is unchanged
-> - Safety core: Windows device names, alternate data streams and directory junctions are refused
->   or treated as links; paths compare regardless of case on Windows
+>   or newer). On macOS and Linux it is unchanged, so installations of 0.1 stay current
+> - Safety core: Windows device names, alternate data streams and names that end in a dot or a
+>   space are refused; directory junctions count as links; paths compare regardless of case
 > - WSL 2 runs as Linux; on Windows drives, `pack` warns when file permissions have no effect
-> - CI runs on Linux, macOS and Windows with Python 3.11 to 3.15
+> - The skill pre-approves its commands in Git Bash and in PowerShell; where Windows PowerShell 5.1
+>   breaks the JSON argument, the handoff goes through a file
+> - CI runs the whole test suite on Linux, macOS and Windows with Python 3.11 to 3.15, including a
+>   fresh installation
 >
-> Not tested yet: Claude Code itself on Windows, and WSL 2 on a real installation. See
-> docs/platforms.md and docs/limitations.md.
+> Update an existing installation by checking out the new tag (docs/install.md, Update). Not tested
+> yet: Claude Code itself on Windows, and WSL 2 on a real installation. See docs/platforms.md and
+> docs/limitations.md; all changes are in CHANGELOG.md.
