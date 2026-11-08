@@ -5,6 +5,7 @@ import os
 import stat
 import unittest
 
+import helpers
 from helpers import TempProject, patched_home
 
 from context_bridge import consent, store
@@ -86,6 +87,7 @@ class StoreTests(unittest.TestCase):
         self.write("20261107T100000Z-abcdef")
         self.assertEqual(self.project.git("status", "--porcelain").stdout, "")
 
+    @helpers.requires_symlinks
     def test_symlinked_store_is_refused(self) -> None:
         elsewhere = self.project.base / "elsewhere"
         elsewhere.mkdir()
@@ -94,10 +96,11 @@ class StoreTests(unittest.TestCase):
             self.write("20261107T100000Z-abcdef")
         self.assertEqual(list(elsewhere.iterdir()), [])
 
+    @helpers.requires_symlinks
     def test_latest_symlink_is_replaced_not_followed(self) -> None:
         self.write("20261107T100000Z-abcdef")
         target = self.project.base / "victim.md"
-        target.write_text("keep me", encoding="utf-8")
+        target.write_text("keep me", encoding="utf-8", newline="\n")
         latest = self.root / ".context-bridge" / "latest.md"
         latest.unlink()
         latest.symlink_to(target)
@@ -109,7 +112,7 @@ class StoreTests(unittest.TestCase):
         for second in range(5):
             self.write(f"20261107T10000{second}Z-abcdef", keep=3)
         packs = self.root / ".context-bridge" / "packs"
-        (packs / "notes.txt").write_text("not a pack", encoding="utf-8")
+        (packs / "notes.txt").write_text("not a pack", encoding="utf-8", newline="\n")
         self.write("20261107T100009Z-abcdef", keep=3)
         names = sorted(p.name for p in packs.iterdir())
         self.assertEqual(

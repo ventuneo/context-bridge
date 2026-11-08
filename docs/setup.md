@@ -15,6 +15,12 @@ directly:
 cb() { python3 -I ~/.claude/skills/context-bridge/scripts/cb.py "$@"; }
 ```
 
+On Windows, in PowerShell:
+
+```powershell
+function cb { python -I "$env:USERPROFILE\.claude\skills\context-bridge\scripts\cb.py" @args }
+```
+
 ## Preview, confirm, back up, undo
 
 | Step | Command | Writes |
@@ -29,8 +35,8 @@ cb() { python3 -I ~/.claude/skills/context-bridge/scripts/cb.py "$@"; }
   the change. If the file changes after the preview, or the change would differ, `apply` refuses;
   preview again.
 - **Backups.** Before every write, the old file and a manifest are stored in
-  `$XDG_STATE_HOME/context-bridge/setup/<time>-<id>/` (default `~/.local/state/context-bridge/`),
-  with private permissions.
+  `$XDG_STATE_HOME/context-bridge/setup/<time>-<id>/` (default `~/.local/state/context-bridge/`, on
+  Windows `%LOCALAPPDATA%\context-bridge\`), with private permissions.
 - **Undo** restores the backup byte for byte. If the file was edited since, undo removes only
   Context Bridge's own block or hook entry and keeps your edits.
 - **Idempotent.** Running `setup` again changes nothing. Other mentions of Context Bridge, or a block
@@ -42,12 +48,12 @@ cb() { python3 -I ~/.claude/skills/context-bridge/scripts/cb.py "$@"; }
 
 | Target | File | Applies to |
 |---|---|---|
-| `global` | `~/.claude/CLAUDE.md` | all your projects |
+| `global` | `~/.claude/CLAUDE.md` (on Windows `%USERPROFILE%\.claude\CLAUDE.md`) | all your projects |
 | `project` | `CLAUDE.md` (or `.claude/CLAUDE.md`) | everyone working on the project, if you commit it |
 | `local` | `CLAUDE.local.md` | only you, in this project (keep it out of git) |
 
-The block is short and marked, so it can be updated or removed exactly. Its heading level follows
-the file. Its language follows the file too (English or German, or choose with `--lang en|de`):
+The block is short and marked, so it can be updated or removed exactly. Its heading level and its
+line endings (LF or CRLF) follow the file. Its language follows the file too (English or German, or choose with `--lang en|de`):
 
 ```markdown
 <!-- context-bridge:begin v1 -->
@@ -118,10 +124,29 @@ as they are:
 }
 ```
 
+On Windows the entry starts Python directly, without a shell. Claude Code supports this exec form
+(`command` plus `args`) from version 2.1.139:
+
+```json
+{
+  "type": "command",
+  "command": "C:\\Users\\<you>\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+  "args": ["-I", "C:\\Users\\<you>\\.claude\\skills\\context-bridge\\scripts\\cb.py", "session-start"],
+  "timeout": 10
+}
+```
+
+Claude Code runs a hook that is written as one command line in Git Bash, or in PowerShell when Git
+Bash is not installed. No quoting of a program path works in both, so the Windows entry avoids the
+shell. `command` is the Python that ran `setup`, by its full path; see [Update](install.md#update)
+for what to do after a Python update. On every system, a path that contains `${` blocks the hook,
+because Claude Code would replace it as a placeholder.
+
 `--target project` writes to `.claude/settings.json` and `--target local` to
 `.claude/settings.local.json` of the project instead.
 
-**Options** in your user configuration `~/.config/context-bridge/config.toml`:
+**Options** in your user configuration `~/.config/context-bridge/config.toml` (on Windows
+`%APPDATA%\context-bridge\config.toml`):
 
 ```toml
 [hook]

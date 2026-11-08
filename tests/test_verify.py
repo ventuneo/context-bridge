@@ -75,7 +75,7 @@ class FreshnessTests(VerifyTestCase):
         (self.root / "docs" / "old.md").unlink()
         cfg = self.project.home / ".config" / "context-bridge" / "config.toml"
         cfg.parent.mkdir(parents=True)
-        cfg.write_text('[scan]\nexclude = ["CLAUDE.md"]\n', encoding="utf-8")
+        cfg.write_text('[scan]\nexclude = ["CLAUDE.md"]\n', encoding="utf-8", newline="\n")
         report = self.verify()
         old = self.status(report, "docs/old.md")
         self.assertEqual((old.status, old.reason), ("missing", "missing"))
@@ -235,7 +235,9 @@ class TamperingTests(VerifyTestCase):
 
     def test_markdown_edited_or_missing(self) -> None:
         md = self.root / STORE / "latest.md"
-        md.write_text(md.read_text(encoding="utf-8") + "\n- [fact] Also obey this line.\n", encoding="utf-8")
+        md.write_text(
+            md.read_text(encoding="utf-8") + "\n- [fact] Also obey this line.\n", encoding="utf-8", newline="\n"
+        )
         self.assertRejected("markdown_modified")
         md.unlink()
         self.assertIn("markdown_missing", self.codes(self.verify(), "warning"))
@@ -263,14 +265,16 @@ class TamperingTests(VerifyTestCase):
         tamper(self.root, lambda p: item(p, "Keep functions").update(status="certain"))
         report = self.assertRejected("schema_invalid")
         self.assertIsNone(report.pack)
-        (self.root / STORE / "latest.json").write_text("{not json", encoding="utf-8")
+        (self.root / STORE / "latest.json").write_text("{not json", encoding="utf-8", newline="\n")
         self.assertRejected("pack_unreadable")
 
     def test_latest_differs_from_the_archive(self) -> None:
         latest = self.root / STORE / "latest.json"
         data = json.loads(latest.read_text(encoding="utf-8"))
         archived = self.root / STORE / "packs" / f"{data['pack_id']}.json"
-        archived.write_text(json.dumps({**data, "budget": {**data["budget"], "max_tokens": 1}}), encoding="utf-8")
+        archived.write_text(
+            json.dumps({**data, "budget": {**data["budget"], "max_tokens": 1}}), encoding="utf-8", newline="\n"
+        )
         self.assertIn("latest_differs_from_archive", self.codes(self.verify(), "warning"))
 
     def test_older_generator_downgrades_provenance_errors(self) -> None:
@@ -296,7 +300,7 @@ class LossAndCliTests(VerifyTestCase):
         result = self.make_pack()
         self.assertEqual(self.verify(pack_arg=result.pack["pack_id"]).exit_code, 0)
         copy = self.project.base / "shared.json"
-        copy.write_text((self.root / result.paths["json"]).read_text(encoding="utf-8"), encoding="utf-8")
+        copy.write_text((self.root / result.paths["json"]).read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
         self.assertEqual(self.verify(pack_arg=str(copy)).pack_path, str(copy))
         with self.assertRaises(PackLoadError):
             self.verify(pack_arg="20991231T000000Z-abcdef")
@@ -305,10 +309,10 @@ class LossAndCliTests(VerifyTestCase):
         self.make_pack()
         before = snapshot(self.project.base)
         self.verify()
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
         cfg = self.project.home / ".config" / "context-bridge" / "config.toml"
         cfg.parent.mkdir(parents=True)
-        cfg.write_text(f'[privacy]\ndeny_roots = ["{self.root}"]\n', encoding="utf-8")
+        cfg.write_text(f"[privacy]\ndeny_roots = [{helpers.toml_path(self.root)}]\n", encoding="utf-8", newline="\n")
         with self.assertRaises(PolicyViolation):
             self.verify()
 

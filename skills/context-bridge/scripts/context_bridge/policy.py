@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from . import compat
+
 # Exclusion reason codes (stable: they appear in JSON reports).
 SECRET_FILE = "secret_file"
 SECRET_DIR = "secret_dir"
@@ -182,31 +184,38 @@ class DenyRoots:
     """Directories that must never be read, compared by device and inode.
 
     Inode comparison is immune to symlinks, ``..`` tricks and case variations on
-    case-insensitive file systems. Deny roots that do not exist are ignored.
+    case-insensitive file systems. File systems without stable file ids (some report 0, such
+    as FAT on Windows) are compared by their resolved path instead, case-insensitively on
+    Windows. Deny roots that do not exist are ignored.
     """
 
     def __init__(self, paths: Iterable[Path]) -> None:
         self._ids: set[tuple[int, int]] = set()
+        self._keys: set[str] = set()
         for path in paths:
             try:
                 st = os.stat(path)
             except OSError:
                 continue
-            self._ids.add((st.st_dev, st.st_ino))
+            if st.st_ino:
+                self._ids.add((st.st_dev, st.st_ino))
+            self._keys.add(compat.path_key(os.path.realpath(path)))
 
     def __bool__(self) -> bool:
-        return bool(self._ids)
+        return bool(self._ids or self._keys)
 
     def is_deny_root(self, path: Path) -> bool:
         try:
             st = os.stat(path)
         except OSError:
             return False
-        return (st.st_dev, st.st_ino) in self._ids
+        if st.st_ino and (st.st_dev, st.st_ino) in self._ids:
+            return True
+        return compat.path_key(os.path.realpath(path)) in self._keys
 
     def blocks(self, path: Path) -> bool:
         """True if ``path`` or any of its ancestors (lexical or resolved) is a deny root."""
-        if not self._ids:
+        if not self:
             return False
         candidates = {Path(os.path.abspath(path)), Path(os.path.realpath(path))}
         for base in candidates:

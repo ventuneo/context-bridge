@@ -2,12 +2,14 @@
 
 Every read goes through :func:`read_file`, which
 
-* accepts only clean relative paths (no absolute paths, ``..``, ``~``, drive letters, NUL),
-* resolves symlinks and refuses targets outside the root,
+* accepts only clean relative paths (no absolute paths, ``..``, ``~``, drive letters, NUL;
+  on Windows also no device names, alternate data streams or names ending in a dot or space),
+* resolves symlinks and directory junctions and refuses targets outside the root,
 * reads regular files only (no FIFOs, devices, sockets or directories),
 * enforces a size limit while reading, and
-* opens with ``O_NOFOLLOW | O_NONBLOCK`` and re-checks the inode after opening, so a
-  file swapped for a symlink or FIFO between the checks is detected.
+* opens with ``O_NOFOLLOW | O_NONBLOCK`` where the system has them and re-checks the file id
+  after opening, so a file swapped for a link or FIFO between the checks is detected (Windows
+  has no ``O_NOFOLLOW``; there the re-check after resolving the path does this job).
 
 Limitation: a concurrent local attacker who swaps *intermediate directories* during a
 read is out of scope; the threat model is untrusted repository content.
@@ -23,6 +25,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from . import compat
 from .errors import UnsafePathError
 
 BINARY_SNIFF_BYTES = 8192
@@ -62,13 +65,18 @@ def is_within(path: Path, root: Path) -> bool:
     return True
 
 
-def check_relative(rel: str) -> PurePosixPath:
+def check_relative(rel: str, *, windows: bool = compat.WINDOWS) -> PurePosixPath:
     """Validate a relative POSIX path taken from untrusted input."""
     if not rel or "\x00" in rel or "\\" in rel or rel.startswith("~") or _DRIVE_RE.match(rel):
         raise UnsafePathError(INVALID_PATH, f"invalid relative path: {rel!r}")
     pure = PurePosixPath(rel)
     if pure.is_absolute() or any(part == ".." for part in pure.parts):
         raise UnsafePathError(INVALID_PATH, f"invalid relative path: {rel!r}")
+    if windows:
+        for part in pure.parts:
+            problem = compat.windows_name_problem(part)
+            if problem:
+                raise UnsafePathError(INVALID_PATH, f"invalid relative path on Windows: {rel!r} ({part!r} {problem})")
     return pure
 
 
@@ -86,12 +94,12 @@ def read_file(root: Path, rel: str, max_bytes: int) -> FileContent:
     check_relative(rel)
     lexical = root / rel
     try:
-        lst = os.lstat(lexical)
+        os.lstat(lexical)
     except FileNotFoundError as exc:
         raise UnsafePathError(MISSING, f"missing: {rel}") from exc
     except OSError as exc:
         raise UnsafePathError(UNREADABLE, f"unreadable: {rel}") from exc
-    is_link = stat.S_ISLNK(lst.st_mode)
+    is_link = compat.is_link_like(lexical)
     try:
         target = lexical.resolve(strict=True)
     except (OSError, RuntimeError) as exc:  # RuntimeError: symlink loop on older Pythons
@@ -144,12 +152,16 @@ def decode_text(data: bytes) -> tuple[str, bool]:
     return text.removeprefix("﻿"), valid
 
 
-def ensure_private_dir(path: Path) -> None:
-    """Create ``path`` (one level) with mode 0700; refuse symlinks."""
-    if path.is_symlink():
+def ensure_private_dir(path: Path) -> bool:
+    """Create ``path`` (one level) with mode 0700; refuse links and junctions.
+
+    Returns whether the permission bits took effect (always True on Windows, which has none).
+    """
+    if compat.is_link_like(path):
         raise UnsafePathError("symlinked_store", f"refusing to use a symlinked directory: {path.name}")
     path.mkdir(mode=0o700, exist_ok=True)
     os.chmod(path, 0o700)
+    return compat.permissions_enforced(path, 0o700)
 
 
 def atomic_write(path: Path, data: bytes, mode: int = 0o600) -> None:
@@ -161,7 +173,7 @@ def atomic_write(path: Path, data: bytes, mode: int = 0o600) -> None:
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp, path)
+        compat.replace(tmp, path)
     except BaseException:
         try:
             os.unlink(tmp)

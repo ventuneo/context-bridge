@@ -117,7 +117,7 @@ class NewSessionTests(ResumeTestCase):
         self.session_one()
         before = snapshot(self.project.base)
         self.resume()
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
 
 class RefusalTests(ResumeTestCase):

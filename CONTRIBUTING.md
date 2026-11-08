@@ -50,6 +50,9 @@ python3 tools/privacy_check.py --history              # the whole history
 ruff check . && ruff format --check .                 # ruff 0.17.4
 ```
 
+On Windows, write `python` or `py -3` instead of `python3`; the commands work in Git Bash and in
+PowerShell. The git hooks in `.githooks/` find `python3`, `python` or `py` by themselves.
+
 The JSON Schema cross-check needs one development dependency:
 
 ```sh
@@ -57,6 +60,8 @@ python3 -m pip install "jsonschema==4.23.0" && python3 tools/check_schema.py
 ```
 
 Tests must never read your real home folder; `tests/helpers.py` enforces this with an audit hook.
+Platform differences belong in `scripts/context_bridge/compat.py`, with a `windows=` parameter so
+that tests can check the Windows behaviour on every system (see [docs/platforms.md](docs/platforms.md)).
 
 ## Changes that need extra care
 
@@ -68,7 +73,8 @@ Tests must never read your real home folder; `tests/helpers.py` enforces this wi
 - **Token estimate.** Recalibrate with the steps in
   [docs/quality.md](docs/quality.md#token-estimate). Measuring sends the samples to a model and
   costs a few cents. A new calibration gets a new `ESTIMATOR` name and a new baseline.
-- **The skill (`SKILL.md`).** Keep `allowed-tools` limited to `python3 -I …/cb.py` commands.
+- **The skill (`SKILL.md`).** Keep `allowed-tools` limited to `cb.py` commands: `python3 -I`, and for
+  Windows `python -I` and `py -3 -I`, in the Bash and the PowerShell tool.
   `setup apply` and `setup undo` must keep asking the user.
 
 ## Pull requests

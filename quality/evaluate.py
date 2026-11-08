@@ -146,21 +146,21 @@ def prepare(case_dir: Path, workdir: Path, expected: dict[str, Any]) -> Path:
     shutil.copytree(case_dir / "project", root)
     for path in root.rglob("*"):
         if path.is_file():
-            path.write_text(substitute(path.read_text(encoding="utf-8")), encoding="utf-8")
+            path.write_text(substitute(path.read_text(encoding="utf-8")), encoding="utf-8", newline="\n")
     noise = expected.get("noise", {})
     for d in range(noise.get("source_dirs", 0)):
         for f in range(noise.get("files_per_dir", 0)):
             target = root / "src" / f"module_{d:02d}" / f"part_{f}.py"
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(f"print('noise {d} {f}')\n", encoding="utf-8")
+            target.write_text(f"print('noise {d} {f}')\n", encoding="utf-8", newline="\n")
     docs = noise.get("docs")
     if docs:
         folder = root / docs.get("dir", "docs/guides")
         folder.mkdir(parents=True, exist_ok=True)
         for i in range(docs["count"]):
-            (folder / f"guide-{i:02d}.md").write_text(_guide(i, docs), encoding="utf-8")
+            (folder / f"guide-{i:02d}.md").write_text(_guide(i, docs), encoding="utf-8", newline="\n")
     if noise.get("env_secret"):
-        (root / ".env").write_text(noise["env_secret"] + "\n", encoding="utf-8")
+        (root / ".env").write_text(noise["env_secret"] + "\n", encoding="utf-8", newline="\n")
     return root
 
 

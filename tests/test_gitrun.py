@@ -55,7 +55,7 @@ class FsmonitorTests(GitTestCase):
         self.project.git_init()
         marker = self.project.base / "fsmonitor-ran"
         hook = self.project.base / "hook.sh"
-        hook.write_text(f"#!/bin/sh\ntouch '{marker}'\nexit 1\n", encoding="utf-8")
+        hook.write_text(f"#!/bin/sh\ntouch '{marker}'\nexit 1\n", encoding="utf-8", newline="\n")
         hook.chmod(0o755)
         self.project.git("config", "core.fsmonitor", str(hook))
         # Sanity check: plain git really runs the hook, so the test is meaningful.

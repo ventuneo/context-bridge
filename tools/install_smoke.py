@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Smoke test of a fresh installation, done the way docs/install.md and docs/setup.md describe it.
 
-Everything happens in a throwaway folder: HOME, the XDG folders and the git configuration point
-into it, so neither your real home folder nor your Claude Code settings are read or changed.
+Everything happens in a throwaway folder: HOME (USERPROFILE, APPDATA and LOCALAPPDATA on
+Windows) and the git configuration point into it, so neither your real home folder nor your
+Claude Code settings are read or changed. On Windows the skill is linked with a directory
+junction, as docs/install.md describes, because symlinks need Developer Mode there.
 
 1. A bare copy of the source repository serves as "GitHub". It gets two tags: an older commit
    (the installed release) and the commit under test (the update).
@@ -11,7 +13,8 @@ into it, so neither your real home folder nor your Claude Code settings are read
 3. Update to the newer tag with the documented ``git fetch``/``git checkout`` commands.
 4. scan → pack → verify → resume on a copy of examples/demo-project (a git repository).
 5. setup: the SessionStart hook and the global CLAUDE.md block (preview → apply → idempotent).
-   The hook command from settings.json is run the way Claude Code runs it.
+   The hook from settings.json is run the way Claude Code runs it: the shell form through
+   ``sh -c``, the exec form that Windows gets without a shell.
 6. Uninstall: undo the hook and the block (files restored byte for byte), remove the link, the
    clone and the state folder, then check that the home folder is exactly as before.
 
@@ -30,9 +33,11 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+WINDOWS = os.name == "nt"
 IDENTITY = {"GIT_AUTHOR_NAME": "Smoke Test", "GIT_AUTHOR_EMAIL": "smoke@example.com",
             "GIT_COMMITTER_NAME": "Smoke Test", "GIT_COMMITTER_EMAIL": "smoke@example.com"}  # fmt: skip
 HANDOFF = {
@@ -47,15 +52,42 @@ class SmokeFailure(Exception):
     pass
 
 
+def is_link(path: Path) -> bool:
+    """A symbolic link or a Windows directory junction."""
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return False
+    return stat.S_ISLNK(st.st_mode) or getattr(st, "st_reparse_tag", 0) in (0xA000000C, 0xA0000003)
+
+
 def tree(root: Path) -> dict[str, bytes]:
     """Every file below ``root`` (links as their target text), for exact before/after comparisons."""
     files = {}
-    for path in sorted(root.rglob("*")):
-        if path.is_symlink():
-            files[str(path.relative_to(root))] = os.readlink(path).encode()
-        elif path.is_file():
-            files[str(path.relative_to(root))] = path.read_bytes()
-    return files
+    for dirpath, dirnames, filenames in os.walk(root):
+        for name in list(dirnames):  # never descend into a link or junction
+            if is_link(Path(dirpath, name)):
+                files[Path(dirpath, name).relative_to(root).as_posix()] = os.readlink(Path(dirpath, name)).encode()
+                dirnames.remove(name)
+        for name in filenames:
+            path = Path(dirpath, name)
+            files[path.relative_to(root).as_posix()] = (
+                os.readlink(path).encode() if is_link(path) else path.read_bytes()
+            )
+    return dict(sorted(files.items()))
+
+
+def remove_tree(path: Path) -> None:
+    """``rm -rf``; git makes its object files read-only on Windows, so clear that flag first."""
+
+    def force(function, target, *_exc):  # type: ignore[no-untyped-def]
+        os.chmod(target, stat.S_IWRITE)
+        function(target)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=force)
+    else:
+        shutil.rmtree(path, onerror=force)
 
 
 class Smoke:
@@ -63,22 +95,38 @@ class Smoke:
         self.base, self.python = base, python
         self.home = base / "home"
         self.env = {k: v for k, v in os.environ.items() if not k.startswith(("XDG_", "CONTEXT_BRIDGE", "GIT_"))}
+        local = self.home / "AppData" / "Local"
         self.env.update(
             HOME=str(self.home),
-            XDG_CONFIG_HOME=str(self.home / ".config"),
-            XDG_STATE_HOME=str(self.home / ".local" / "state"),
-            XDG_DATA_HOME=str(self.home / ".local" / "share"),
+            USERPROFILE=str(self.home),
+            APPDATA=str(self.home / "AppData" / "Roaming"),
+            LOCALAPPDATA=str(local),
             GIT_CONFIG_NOSYSTEM="1",
+            # no "git maintenance run --auto --detach" after fetch and commit: it would still be
+            # working in the clone while the uninstall step removes it
+            GIT_CONFIG_COUNT="2",
+            GIT_CONFIG_KEY_0="maintenance.auto",
+            GIT_CONFIG_VALUE_0="false",
+            GIT_CONFIG_KEY_1="gc.auto",
+            GIT_CONFIG_VALUE_1="0",
             GIT_CONFIG_GLOBAL=os.devnull,
             **IDENTITY,
         )
-        self.clone = self.home / ".local" / "share" / "context-bridge"
+        # The folders docs/install.md uses; state goes where Context Bridge puts it without XDG variables.
+        if WINDOWS:
+            self.clone = local / "Programs" / "context-bridge"
+            self.state = local / "context-bridge"
+        else:
+            self.clone = self.home / ".local" / "share" / "context-bridge"
+            self.state = self.home / ".local" / "state" / "context-bridge"
         self.link = self.home / ".claude" / "skills" / "context-bridge"
         self.passed = 0
 
     # --- helpers ---------------------------------------------------------------------------
     def run(self, *cmd: str, cwd: Path | None = None, stdin: str | None = None, codes: tuple[int, ...] = (0,)):
-        result = subprocess.run(cmd, cwd=cwd, env=self.env, input=stdin, capture_output=True, text=True, timeout=180)
+        # errors="replace": cmd.exe (mklink) answers in the OEM code page, everything else in UTF-8
+        result = subprocess.run(cmd, cwd=cwd, env=self.env, input=stdin, capture_output=True, encoding="utf-8",
+                                errors="replace", timeout=180)  # fmt: skip
         if result.returncode not in codes:
             raise SmokeFailure(f"{shlex.join(cmd)} exited {result.returncode}:\n{result.stdout}\n{result.stderr}")
         return result
@@ -103,9 +151,9 @@ class Smoke:
     def prepare_home(self) -> dict[str, bytes]:
         claude = self.home / ".claude"
         claude.mkdir(parents=True)
-        (claude / "CLAUDE.md").write_text("# My rules\n\n- Keep answers short.\n", encoding="utf-8")
+        (claude / "CLAUDE.md").write_text("# My rules\n\n- Keep answers short.\n", encoding="utf-8", newline="\n")
         settings = {"theme": "dark", "hooks": {"SessionEnd": [{"hooks": [{"type": "command", "command": "true"}]}]}}
-        (claude / "settings.json").write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+        (claude / "settings.json").write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8", newline="\n")
         return tree(self.home)
 
     def publish(self, source: str, ref: str) -> tuple[str, str]:
@@ -123,21 +171,31 @@ class Smoke:
         if repo == source:  # fetched into the throwaway repository; nothing is ever pushed
             upload_pack = "git -c uploadpack.allowAnySHA1InWant=true upload-pack"  # the commit may have no ref
             refspecs = (f"{old}:refs/tags/{OLD_TAG}", f"{new}:refs/tags/{NEW_TAG}")
-            url = f"file://{Path(source).resolve()}"
+            url = Path(source).resolve().as_uri()
             self.run("git", "-C", str(origin), "fetch", "--quiet", "--upload-pack", upload_pack, url, *refspecs)
         else:
             self.run("git", "-C", repo, "tag", OLD_TAG, old)
             self.run("git", "-C", repo, "tag", NEW_TAG, new)
-        return f"file://{origin}", new
+        return origin.as_uri(), new
 
     def install(self, url: str) -> None:
         self.run("git", "clone", "--quiet", "--branch", OLD_TAG, "--depth", "1", url, str(self.clone))
         self.link.parent.mkdir(parents=True, exist_ok=True)
-        self.link.symlink_to(self.clone / "skills" / "context-bridge")
+        target = self.clone / "skills" / "context-bridge"
+        if WINDOWS:  # a junction needs no admin rights or Developer Mode
+            self.run("cmd", "/c", "mklink", "/J", str(self.link), str(target))
+        else:
+            self.link.symlink_to(target)
         version = self.cb("--version", cwd=self.base).stdout.strip()
         self.check("install: clone a tag and link the skill folder", version.startswith("context-bridge "), version)
 
     def update(self, new: str) -> None:
+        # A real update comes later than the install. Python treats a cached .pyc as current when the
+        # source has the same size and the same mtime in whole seconds, so an update within the same
+        # second as the install could run the old code (0.1.0 -> 0.2.0 keeps the size of __init__.py).
+        init = self.clone / "skills" / "context-bridge" / "scripts" / "context_bridge" / "__init__.py"
+        while time.time() < init.stat().st_mtime + 1.1:
+            time.sleep(0.1)
         self.run("git", "-C", str(self.clone), "fetch", "--quiet", "--depth", "1", "origin", "tag", NEW_TAG)
         self.run("git", "-C", str(self.clone), "checkout", "--quiet", NEW_TAG)
         head = self.run("git", "-C", str(self.clone), "rev-parse", "HEAD").stdout.strip()
@@ -159,8 +217,10 @@ class Smoke:
         self.cb("pack", "--root", ".", "--approve", "--handoff-json", json.dumps(HANDOFF), cwd=project)
         store = project / ".context-bridge"
         modes = (stat.S_IMODE(store.stat().st_mode), stat.S_IMODE((store / "latest.json").stat().st_mode))
+        private = WINDOWS or modes == (0o700, 0o600)  # Windows has no permission bits; profile ACLs apply
         ignored = self.run("git", "status", "--porcelain", cwd=project).stdout.strip() == ""
-        self.check("pack: written privately and ignored by git", modes == (0o700, 0o600) and ignored, str(modes))
+        written = (store / "latest.json").is_file()
+        self.check("pack: written privately and ignored by git", private and ignored and written, str(modes))
         out = self.cb("verify", "--root", ".", cwd=project).stdout
         self.check("verify: OK", "Result: OK" in out, out)
         out = self.cb("resume", "--root", ".", cwd=project).stdout
@@ -175,12 +235,14 @@ class Smoke:
         self.setup_cmd("apply", "--target", "global", "--hook", "--confirm", pid, "--root", ".", cwd=project)
         settings = json.loads((self.home / ".claude" / "settings.json").read_text(encoding="utf-8"))
         kept = settings["theme"] == "dark" and settings["hooks"]["SessionEnd"][0]["hooks"][0]["command"] == "true"
-        ours = [h["command"] for e in settings["hooks"]["SessionStart"] for h in e["hooks"]]
-        self.check("setup: hook installed, other settings kept", kept and len(ours) == 1)
+        ours = [h for e in settings["hooks"]["SessionStart"] for h in e["hooks"]]
+        exec_form = WINDOWS == ("args" in ours[0])  # Windows: exec form; elsewhere the shell form of 0.1
+        self.check("setup: hook installed, other settings kept", kept and len(ours) == 1 and exec_form, str(ours))
 
-        def hook(cwd: Path, source: str) -> str:  # as Claude Code runs it: the command, JSON on stdin
+        def hook(cwd: Path, source: str) -> str:  # as Claude Code runs it, with the event as JSON on stdin
+            argv = [ours[0]["command"], *ours[0]["args"]] if "args" in ours[0] else ["sh", "-c", ours[0]["command"]]
             event = {"cwd": str(cwd), "source": source, "hook_event_name": "SessionStart"}
-            return self.run(*shlex.split(ours[0]), cwd=cwd, stdin=json.dumps(event)).stdout
+            return self.run(*argv, cwd=cwd, stdin=json.dumps(event)).stdout
 
         empty = self.base / "projects" / "empty"
         empty.mkdir(parents=True)
@@ -208,19 +270,35 @@ class Smoke:
             tree(self.home)[f".claude/{n}"] == before[f".claude/{n}"] for n in ("CLAUDE.md", "settings.json")
         )
         self.check("uninstall: setup undo restores both files byte for byte", restored)
-        self.link.unlink()
-        shutil.rmtree(self.clone)
-        shutil.rmtree(self.home / ".local" / "state" / "context-bridge")  # approvals and setup backups
+        if WINDOWS:
+            os.rmdir(self.link)  # removes the junction, not the folder it points to
+        else:
+            self.link.unlink()
+        remove_tree(self.clone)
+        remove_tree(self.state)  # approvals and setup backups
         self.check("uninstall: the home folder is exactly as before", tree(self.home) == before,
                    str(sorted(set(tree(self.home)) ^ set(before))))  # fmt: skip
         self.check("uninstall: no skill left", not (claude / "skills" / "context-bridge").exists())
 
 
+def utf8_output() -> None:
+    """Write UTF-8 like cb.py does; on Windows, pipes would otherwise use the ANSI code page."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="backslashreplace")
+            except (ValueError, OSError):
+                pass
+
+
 def main() -> int:
+    utf8_output()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--source", default=str(REPO), help="repository to install from (default: this one)")
     parser.add_argument("--ref", default="HEAD", help="commit or tag to test (default: HEAD of the source)")
-    parser.add_argument("--python", default="python3", help="interpreter for cb.py (default: python3, as documented)")
+    default_python = "python" if WINDOWS else "python3"  # as docs/install.md documents it
+    parser.add_argument("--python", default=default_python, help=f"interpreter for cb.py (default: {default_python})")
     parser.add_argument("--keep", action="store_true", help="keep the throwaway folder for inspection")
     args = parser.parse_args()
     base = Path(tempfile.mkdtemp(prefix="cb-smoke-")).resolve()

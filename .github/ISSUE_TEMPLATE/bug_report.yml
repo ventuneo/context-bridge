@@ -11,8 +11,8 @@ body:
     id: version
     attributes:
       label: Version
-      description: Output of `python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version`
-      placeholder: context-bridge 0.1.0
+      description: Output of `python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version` (on Windows `python -I …`)
+      placeholder: context-bridge 0.2.0
     validations:
       required: true
   - type: input
@@ -20,7 +20,7 @@ body:
     attributes:
       label: Environment
       description: Operating system, Python version and Claude Code version
-      placeholder: macOS 15, Python 3.13.2, Claude Code 2.1
+      placeholder: Windows 11 (Git Bash), Python 3.13.2, Claude Code 2.1.319
     validations:
       required: true
   - type: textarea

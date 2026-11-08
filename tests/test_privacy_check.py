@@ -33,6 +33,7 @@ class CheckTextTests(unittest.TestCase):
     def test_emails(self) -> None:
         self.assertEqual(self.reasons("mail jane" + "@gmail.com"), ["e-mail address"])
         self.assertEqual(self.reasons("dev@example.com, ops@service.test, noreply@anthropic.com, " + NOREPLY), [])
+        self.assertEqual(self.reasons("Committed by GitHub <noreply@github.com>"), [])
 
     def test_private_terms_case_insensitive(self) -> None:
         self.assertEqual(self.reasons("Project TOPSECRET notes", ["topsecret"]), ["private term 'topsecret'"])
@@ -44,7 +45,9 @@ class HookTests(unittest.TestCase):
         self.addCleanup(self.project.cleanup)
         self.project.git_init(commit=False)
         (self.project.root / ".git" / "info").mkdir(exist_ok=True)
-        (self.project.root / ".git" / "info" / "private-terms").write_text("# local\nhushhush\n", encoding="utf-8")
+        (self.project.root / ".git" / "info" / "private-terms").write_text(
+            "# local\nhushhush\n", encoding="utf-8", newline="\n"
+        )
 
     def run_check(self, *args: str, email: str = NOREPLY) -> subprocess.CompletedProcess:
         env = isolated_env(self.project.home)
@@ -55,6 +58,7 @@ class HookTests(unittest.TestCase):
             env=env,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
         )
 
@@ -91,9 +95,9 @@ class HookTests(unittest.TestCase):
 
     def test_commit_message(self) -> None:
         msg = self.project.root / "MSG"
-        msg.write_text("Add feature\n# hushhush in a comment is ignored\n", encoding="utf-8")
+        msg.write_text("Add feature\n# hushhush in a comment is ignored\n", encoding="utf-8", newline="\n")
         self.assertEqual(self.run_check("--message", str(msg)).returncode, 0)
-        msg.write_text("Add hushhush feature\n", encoding="utf-8")
+        msg.write_text("Add hushhush feature\n", encoding="utf-8", newline="\n")
         self.assertEqual(self.run_check("--message", str(msg)).returncode, 1)
 
     def test_history_finds_leaks_in_old_commits(self) -> None:
@@ -109,6 +113,22 @@ class HookTests(unittest.TestCase):
         result = self.run_check("--history")  # ... but still in history
         self.assertEqual(result.returncode, 1)
         self.assertIn("absolute home path", result.stderr)
+
+    def test_history_accepts_github_as_committer_but_not_an_account_e_mail(self) -> None:
+        # A pull request merge made by GitHub: committer GitHub, author the account's e-mail.
+        personal = "jane" + "@gmail.com"
+        for author, expected in ((NOREPLY, 0), (personal, 1)):
+            env = isolated_env(self.project.home)
+            env.update(GIT_AUTHOR_EMAIL=author, GIT_COMMITTER_NAME="GitHub", GIT_COMMITTER_EMAIL="noreply@github.com")
+            subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "Merge pull request"], cwd=self.project.root,
+                           env=env, check=True, capture_output=True)  # fmt: skip
+            result = self.run_check("--history")
+            with self.subTest(author=author):
+                self.assertEqual(result.returncode, expected, result.stderr)
+        self.assertIn("author e-mail is not a no-reply address", result.stderr)
+        self.assertIn("Keep my email addresses private", result.stderr)
+        self.assertNotIn(personal, result.stderr)  # CI logs are public
+        self.assertNotIn("committer e-mail", result.stderr)
 
     def test_history_labels_leftovers_from_blocked_commits(self) -> None:
         self.stage("probe.md", f"{HOME_PATH}\n")  # git add writes the blob even if the commit is blocked

@@ -30,6 +30,7 @@ class HostileFileNameTests(unittest.TestCase):
         self.enterContext(helpers.patched_home(self.project.home))
         self.enterContext(mock.patch.dict(os.environ, {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}))
 
+    @unittest.skipIf(os.name == "nt", "Windows does not allow line breaks or | in file names")
     def test_file_names_cannot_inject_markdown_structure(self) -> None:
         self.project.write("README.md", "# Demo\n\n## Goals\n- Real goal.\n")
         self.project.write("docs/x\n## Goals\n- Injected goal | col.md", "## Rules\n- A rule.\n")

@@ -58,8 +58,10 @@ def tamper(root: Path, mutate: Callable[[dict[str, Any]], None], rehash: bool = 
     md = (root / STORE / "latest.md").read_text(encoding="utf-8")
     if rehash:
         pack, md = recompute(pack)
-    (root / STORE / "latest.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    (root / STORE / "latest.md").write_text(md, encoding="utf-8")
+    (root / STORE / "latest.json").write_text(
+        json.dumps(pack, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
+    )
+    (root / STORE / "latest.md").write_text(md, encoding="utf-8", newline="\n")
     return pack
 
 

@@ -1,3 +1,10 @@
 #!/bin/sh
 # Blocks personal data (home paths, e-mails, private terms, non-noreply identity).
-exec python3 -I "$(git rev-parse --show-toplevel)/tools/privacy_check.py" --staged
+# Use the first Python 3 there is: python3 on macOS and Linux, python or the py launcher on Windows.
+for python in python3 python "py -3"; do
+  if command -v "${python%% *}" >/dev/null 2>&1; then
+    exec $python -I "$(git rev-parse --show-toplevel)/tools/privacy_check.py" --staged
+  fi
+done
+echo "privacy guard: no Python 3 found (tried python3, python and py -3)" >&2
+exit 1

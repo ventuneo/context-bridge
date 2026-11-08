@@ -19,7 +19,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import safepath
+from . import compat, safepath
 from .errors import ContextBridgeError
 
 CONSENT_FORMAT = "context-bridge.consent"
@@ -39,12 +39,12 @@ class ConsentError(ContextBridgeError):
 
 def state_dir(env: Mapping[str, str] | None = None) -> Path:
     env = os.environ if env is None else env
-    base = env.get("XDG_STATE_HOME") or os.path.join(env.get("HOME") or os.path.expanduser("~"), ".local", "state")
-    return Path(base).expanduser() / "context-bridge" / "consent"
+    return compat.state_home(env) / "context-bridge" / "consent"
 
 
 def consent_path(root: Path, env: Mapping[str, str] | None = None) -> Path:
-    key = hashlib.sha256(str(root).encode("utf-8", "surrogateescape")).hexdigest()[:32]
+    # The same folder under two spellings (case on Windows) must find the same approval.
+    key = hashlib.sha256(compat.path_key(root).encode("utf-8", "surrogateescape")).hexdigest()[:32]
     return state_dir(env) / f"{key}.json"
 
 

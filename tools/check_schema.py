@@ -42,7 +42,7 @@ ITEM_MUTATIONS = {"status", "flags", "lines"}
 
 def main() -> int:
     validator = jsonschema.Draft202012Validator(
-        json.loads((REPO / "schema" / "context-pack-v1.schema.json").read_text())
+        json.loads((REPO / "schema" / "context-pack-v1.schema.json").read_text(encoding="utf-8"))
     )
     ok = True
     for case_dir in sorted(p for p in evaluate.CASES.iterdir() if (p / "expected.json").is_file()):

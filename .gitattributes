@@ -1,0 +1,3 @@
+# LF everywhere, also in Windows checkouts: tests, golden files and the token calibration
+# samples compare bytes, and git would otherwise check text files out with CRLF on Windows.
+* text=auto eol=lf

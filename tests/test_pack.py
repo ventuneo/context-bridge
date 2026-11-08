@@ -67,7 +67,7 @@ class ConsentFlowTests(PackTestCase):
         before = snapshot(self.project.base)
         with self.assertRaises(ConsentError):
             self.build()
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
     def test_approved_pack_is_written_and_project_files_are_untouched(self) -> None:
         before = {k: v for k, v in snapshot(self.project.root).items()}
@@ -100,7 +100,7 @@ class ConsentFlowTests(PackTestCase):
         result = self.build(approve=True, dry_run=True)
         self.assertIsNone(result.paths)
         self.assertTrue(result.markdown.startswith("<!-- context-bridge pack"))
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
 
 class ContentTests(PackTestCase):
@@ -202,21 +202,25 @@ class SourceKindTests(PackTestCase):
     def test_denied_root_is_still_refused(self) -> None:
         cfg = self.project.home / ".config" / "context-bridge" / "config.toml"
         cfg.parent.mkdir(parents=True)
-        cfg.write_text(f'[privacy]\ndeny_roots = ["{self.project.root}"]\n', encoding="utf-8")
+        cfg.write_text(
+            f"[privacy]\ndeny_roots = [{helpers.toml_path(self.project.root)}]\n", encoding="utf-8", newline="\n"
+        )
         before = snapshot(self.project.base)
         with self.assertRaises(PolicyViolation):
             self.build(approve=True)
-        self.assertEqual(snapshot(self.project.base), before)
+        self.assertEqual(helpers.changed_paths(before, snapshot(self.project.base)), [])
 
     def test_external_note_needs_user_permission_and_approval(self) -> None:
         notes = self.project.home / "notes"
         notes.mkdir()
         (notes / "field-notes.md").write_text("# Field Notes\n\nZiel: Pilot im Dezember.\nStatus: Plan.\n",
-                                              encoding="utf-8")  # fmt: skip
+                                              encoding="utf-8", newline="\n")  # fmt: skip
         self.project.write(".context-bridge/config.toml", '[sources]\nexternal = ["~/notes/field-notes.md"]\n')
         cfg = self.project.home / ".config" / "context-bridge" / "config.toml"
         cfg.parent.mkdir(parents=True)
-        cfg.write_text(f'[privacy]\nallowed_external_roots = ["{notes}"]\n', encoding="utf-8")
+        cfg.write_text(
+            f"[privacy]\nallowed_external_roots = [{helpers.toml_path(notes)}]\n", encoding="utf-8", newline="\n"
+        )
         result = self.build(approve=True)
         goals = [(i["text"], i["source"]) for i in items_of(result, "goals")]
         label = {s["id"]: s for s in result.pack["sources"]}

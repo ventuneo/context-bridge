@@ -34,7 +34,8 @@ ALLOWED_HOME_NAMES = frozenset(
 HOME_PATH_RE = re.compile(r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)([A-Za-z0-9._-]+)")
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 ALLOWED_EMAIL_DOMAINS = frozenset({"example.com", "example.org", "example.net"})
-ALLOWED_EMAILS = frozenset({"noreply@anthropic.com", "git@github.com"})
+GITHUB_IDENTITY = "noreply@github.com"  # GitHub itself: the committer of merges and web edits
+ALLOWED_EMAILS = frozenset({"noreply@anthropic.com", "git@github.com", GITHUB_IDENTITY})
 NOREPLY_SUFFIX = "@users.noreply.github.com"
 RESERVED_TLDS = (".example", ".test", ".invalid", ".localhost")  # RFC 2606
 
@@ -144,9 +145,16 @@ def check_history(terms: list[str]) -> list[Finding]:
     for record in filter(None, (r.strip("\n") for r in log.split("\x1e"))):
         sha, an, ae, cn, ce, body = record.split("\x00", 5)
         where = f"commit {sha[:10]}"
-        for email in (ae, ce):
-            if not email_allowed(email):
-                findings.append(Finding(where, 0, "author/committer e-mail is not a no-reply address"))
+        for role, email in (("author", ae), ("committer", ce)):
+            if email_allowed(email):
+                continue
+            reason = f"{role} e-mail is not a no-reply address"  # never the address itself: CI logs are public
+            if ce.casefold() == GITHUB_IDENTITY:
+                reason += (
+                    " (GitHub made this commit, a merge or a web edit, with your account e-mail; turn on"
+                    " 'Keep my email addresses private' in your GitHub e-mail settings)"
+                )
+            findings.append(Finding(where, 0, reason))
         findings += check_text(f"{an}\n{cn}\n{body}", where, terms)
     listing = git("cat-file", "--batch-all-objects", "--batch-check=%(objecttype) %(objectname)").decode()
     blobs = [line.split()[1] for line in listing.splitlines() if line.startswith("blob ")]
@@ -165,7 +173,19 @@ def check_history(terms: list[str]) -> list[Finding]:
     return findings
 
 
+def utf8_output() -> None:
+    """Write UTF-8 like cb.py does; on Windows, pipes would otherwise use the ANSI code page."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="backslashreplace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    utf8_output()
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--staged", action="store_true")

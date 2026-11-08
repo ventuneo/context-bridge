@@ -12,9 +12,11 @@ from __future__ import annotations
 import contextlib
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
+import unittest
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -54,9 +56,10 @@ def _home_guard(event: str, args: tuple) -> None:
         path = os.path.realpath(os.fsdecode(target))
     except (TypeError, ValueError):
         return
-    home = str(_REAL_HOME)
+    path, home = os.path.normcase(path), os.path.normcase(str(_REAL_HOME))  # Windows paths ignore case
     if (path == home or path.startswith(home + os.sep)) and not any(
-        path == allowed or path.startswith(allowed + os.sep) for allowed in _ALLOWED_UNDER_HOME
+        path == os.path.normcase(allowed) or path.startswith(os.path.normcase(allowed) + os.sep)
+        for allowed in _ALLOWED_UNDER_HOME
     ):
         raise HomeAccessError(f"test opened a file in the real home directory: {path}")
 
@@ -66,8 +69,55 @@ if not getattr(sys, "_context_bridge_home_guard", False):
     sys._context_bridge_home_guard = True  # type: ignore[attr-defined]
 
 
+def _symlinks_supported() -> bool:
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            os.symlink(tmp, os.path.join(tmp, "probe"), target_is_directory=True)
+        except (OSError, NotImplementedError):
+            return False
+    return True
+
+
+# CB_TEST_NO_SYMLINKS=1 simulates Windows without Developer Mode, where creating a symlink fails.
+_NO_SYMLINKS = os.environ.get("CB_TEST_NO_SYMLINKS") == "1"
+SYMLINKS = not _NO_SYMLINKS and _symlinks_supported()
+requires_symlinks = unittest.skipUnless(
+    SYMLINKS, "creating symbolic links needs Developer Mode or admin rights on Windows"
+)
+POSIX = os.name == "posix"
+requires_posix_permissions = unittest.skipUnless(POSIX, "Windows has no POSIX permission bits")
+
+
+def remove_tree(path: Path) -> None:
+    """``rm -rf`` that also removes read-only files: git makes its object files read-only, and
+    Windows refuses to delete those. Anything that still cannot be removed is left behind."""
+
+    def writable_and_retry(function, target, *_exc):  # type: ignore[no-untyped-def]
+        try:
+            os.chmod(target, stat.S_IWRITE)
+            function(target)
+        except OSError:
+            pass
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=writable_and_retry)
+    else:
+        shutil.rmtree(path, onerror=writable_and_retry)
+
+
 def make_tempdir() -> Path:
     return Path(tempfile.mkdtemp(prefix="cb-test-")).resolve()
+
+
+# Newer git versions start "git maintenance run --auto --detach" after a commit. That background
+# process can change .git while a test compares snapshots, and hold files that a cleanup removes.
+GIT_NO_BACKGROUND_WORK = {
+    "GIT_CONFIG_COUNT": "2",
+    "GIT_CONFIG_KEY_0": "maintenance.auto",
+    "GIT_CONFIG_VALUE_0": "false",
+    "GIT_CONFIG_KEY_1": "gc.auto",
+    "GIT_CONFIG_VALUE_1": "0",
+}
 
 
 def isolated_env(home: Path) -> dict[str, str]:
@@ -75,6 +125,9 @@ def isolated_env(home: Path) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "CONTEXT_BRIDGE_", "PYTHON"))}
     env.update(
         HOME=str(home),
+        USERPROFILE=str(home),  # Windows takes the home folder from here, not from HOME
+        APPDATA=str(home / "AppData" / "Roaming"),
+        LOCALAPPDATA=str(home / "AppData" / "Local"),
         XDG_CONFIG_HOME=str(home / ".config"),
         XDG_STATE_HOME=str(home / ".local" / "state"),
         GIT_CONFIG_GLOBAL=os.devnull,
@@ -83,16 +136,21 @@ def isolated_env(home: Path) -> dict[str, str]:
         GIT_AUTHOR_EMAIL="test@example.com",
         GIT_COMMITTER_NAME="Test",
         GIT_COMMITTER_EMAIL="test@example.com",
+        **GIT_NO_BACKGROUND_WORK,
     )
     return env
 
 
 @contextlib.contextmanager
 def patched_home(home: Path) -> Iterator[Path]:
-    """Point HOME and the XDG config/state directories at ``home`` for in-process tests."""
-    keys = ("HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "CONTEXT_BRIDGE_CONFIG")
+    """Point HOME (USERPROFILE on Windows) and the config and state folders at ``home``."""
+    keys = ("HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_STATE_HOME",
+            "CONTEXT_BRIDGE_CONFIG")  # fmt: skip
     saved = {k: os.environ.get(k) for k in keys}
     os.environ["HOME"] = str(home)
+    os.environ["USERPROFILE"] = str(home)
+    os.environ["APPDATA"] = str(home / "AppData" / "Roaming")
+    os.environ["LOCALAPPDATA"] = str(home / "AppData" / "Local")
     os.environ["XDG_CONFIG_HOME"] = str(home / ".config")
     os.environ["XDG_STATE_HOME"] = str(home / ".local" / "state")
     os.environ.pop("CONTEXT_BRIDGE_CONFIG", None)
@@ -123,7 +181,7 @@ class TempProject:
         self.cleanup()
 
     def cleanup(self) -> None:
-        shutil.rmtree(self.base, ignore_errors=True)
+        remove_tree(self.base)
 
     def write(self, rel: str, content: str | bytes = "", mode: int | None = None) -> Path:
         path = self.root / rel
@@ -131,7 +189,7 @@ class TempProject:
         if isinstance(content, bytes):
             path.write_bytes(content)
         else:
-            path.write_text(content, encoding="utf-8")
+            path.write_text(content, encoding="utf-8", newline="\n")
         if mode is not None:
             path.chmod(mode)
         return path
@@ -139,12 +197,20 @@ class TempProject:
     def symlink(self, rel: str, target: str | Path) -> Path:
         path = self.root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.symlink_to(target)
+        if _NO_SYMLINKS:
+            raise OSError("simulated: creating symlinks needs Developer Mode on Windows")
+        path.symlink_to(target, target_is_directory=Path(target).is_dir())  # Windows needs to know
         return path
 
     def git(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
-            ["git", *args], cwd=self.root, env=isolated_env(self.home), capture_output=True, text=True, check=True
+            ["git", *args],
+            cwd=self.root,
+            env=isolated_env(self.home),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
         )
 
     def git_init(self, commit: bool = True) -> None:
@@ -161,9 +227,30 @@ class TempProject:
             input=input_text,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
             timeout=60,
         )
+
+
+def toml_path(path: Path | str) -> str:
+    """A path as a TOML literal string: no escapes, so Windows backslashes stay as they are."""
+    text = str(path)
+    if "'" in text or "\n" in text:
+        raise ValueError(f"cannot write {text!r} as a TOML literal string")
+    return f"'{text}'"
+
+
+def hook_argv(hook: dict) -> list[str]:
+    """What Claude Code starts for a command hook: exec form directly, shell form through ``sh -c``."""
+    if "args" in hook:
+        return [hook["command"], *hook["args"]]
+    return ["sh", "-c", hook["command"]]
+
+
+def changed_paths(before: dict[str, tuple[int, int, bytes]], after: dict[str, tuple[int, int, bytes]]) -> list[str]:
+    """Paths added, removed or changed between two snapshots: a readable failure instead of a huge diff."""
+    return sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
 
 
 def snapshot(root: Path) -> dict[str, tuple[int, int, bytes]]:

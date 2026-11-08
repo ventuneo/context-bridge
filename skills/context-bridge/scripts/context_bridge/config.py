@@ -35,7 +35,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from . import safepath
+from . import compat, safepath
 from .errors import ConfigError, UnsafePathError
 from .policy import DEFAULT_INCLUDE, DenyRoots
 
@@ -96,15 +96,21 @@ def user_config_path(env: Mapping[str, str] | None = None) -> Path:
     explicit = env.get("CONTEXT_BRIDGE_CONFIG")
     if explicit:
         return Path(explicit).expanduser()
-    base = env.get("XDG_CONFIG_HOME") or os.path.join(env.get("HOME") or os.path.expanduser("~"), ".config")
-    return Path(base).expanduser() / "context-bridge" / "config.toml"
+    return compat.config_home(env) / "context-bridge" / "config.toml"
+
+
+_BACKSLASH_HINT = (
+    " In double quotes, TOML reads a backslash as an escape: write Windows paths in single quotes,"
+    " for example 'C:\\Users\\you\\private', or with forward slashes."
+)
 
 
 def _parse(text: str, origin: str) -> dict[str, Any]:
     try:
         return tomllib.loads(text)
     except tomllib.TOMLDecodeError as exc:
-        raise ConfigError(f"invalid TOML in {origin}: {exc}") from exc
+        hint = _BACKSLASH_HINT if "\\" in text else ""
+        raise ConfigError(f"invalid TOML in {origin}: {exc}.{hint}") from exc
 
 
 def _check_keys(data: dict[str, Any], allowed: dict[str, set[str]], origin: str, warnings: list[str]) -> None:

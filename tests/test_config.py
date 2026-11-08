@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
 from pathlib import Path
 
+import helpers
 from helpers import TempProject
 
 from context_bridge import config
@@ -18,7 +21,7 @@ class ConfigTestCase(unittest.TestCase):
 
     def write_user(self, text: str) -> None:
         self.user_path.parent.mkdir(parents=True, exist_ok=True)
-        self.user_path.write_text(text, encoding="utf-8")
+        self.user_path.write_text(text, encoding="utf-8", newline="\n")
 
     def write_project(self, text: str) -> None:
         self.project.write(config.PROJECT_CONFIG_REL, text)
@@ -39,7 +42,7 @@ class LayeringTests(ConfigTestCase):
     def test_user_config(self) -> None:
         private = self.project.base / "private"
         self.write_user(
-            f'[privacy]\ndeny_roots = ["{private}"]\nallowed_external_roots = ["{self.project.base}/notes"]\n'
+            f"[privacy]\ndeny_roots = [{helpers.toml_path(private)}]\nallowed_external_roots = [{helpers.toml_path(self.project.base / 'notes')}]\n"
             'redact_pii = false\n[scan]\nmax_file_bytes = 1000\nexclude = ["drafts/**"]\n'
         )
         cfg = self.load()
@@ -60,7 +63,7 @@ class LayeringTests(ConfigTestCase):
 
 class ProjectCannotLoosenTests(ConfigTestCase):
     def test_project_cannot_set_deny_or_external_roots(self) -> None:
-        self.write_user(f'[privacy]\ndeny_roots = ["{self.project.base}/private"]\n')
+        self.write_user(f"[privacy]\ndeny_roots = [{helpers.toml_path(self.project.base / 'private')}]\n")
         self.write_project('[privacy]\ndeny_roots = []\nallowed_external_roots = ["/"]\n')
         cfg = self.load()
         self.assertEqual(cfg.deny_roots, (self.project.base / "private",))
@@ -94,9 +97,10 @@ class ProjectCannotLoosenTests(ConfigTestCase):
         self.assertEqual(len(cfg.external_sources), 1)
         self.assertTrue(cfg.project_config_loaded)
 
+    @helpers.requires_symlinks
     def test_symlinked_project_config_is_refused(self) -> None:
         outside = self.project.base / "elsewhere.toml"
-        outside.write_text("[scan]\n", encoding="utf-8")
+        outside.write_text("[scan]\n", encoding="utf-8", newline="\n")
         self.project.symlink(config.PROJECT_CONFIG_REL, outside)
         with self.assertRaises(ConfigError):
             self.load()
@@ -127,7 +131,19 @@ class UserConfigPathTests(unittest.TestCase):
         self.assertEqual(
             user_config_path({"XDG_CONFIG_HOME": "/cfg", "HOME": "/h"}), Path("/cfg/context-bridge/config.toml")
         )
-        self.assertEqual(user_config_path({"HOME": "/h"}), Path("/h/.config/context-bridge/config.toml"))
+        if os.name == "nt":  # the roaming application data folder, as Windows programs use it
+            env = {"USERPROFILE": r"C:\h", "APPDATA": r"C:\h\AppData\Roaming"}
+            self.assertEqual(user_config_path(env), Path(r"C:\h\AppData\Roaming\context-bridge\config.toml"))
+        else:
+            self.assertEqual(user_config_path({"HOME": "/h"}), Path("/h/.config/context-bridge/config.toml"))
+
+    def test_windows_paths_in_double_quotes_get_a_hint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.toml"
+            path.write_text('[privacy]\ndeny_roots = ["C:\\Users\\alice\\private"]\n', encoding="utf-8", newline="\n")
+            with self.assertRaises(ConfigError) as caught:
+                load_config(Path(tmp), path)
+        self.assertIn("write Windows paths in single quotes", str(caught.exception))
 
 
 if __name__ == "__main__":

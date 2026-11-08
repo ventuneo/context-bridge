@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import unittest
 
+import helpers
 from helpers import TempProject
 
 from context_bridge import policy
@@ -76,7 +77,7 @@ class DenyRootTests(unittest.TestCase):
         self.addCleanup(self.project.cleanup)
         self.private = self.project.base / "private"
         (self.private / "sub").mkdir(parents=True)
-        (self.private / "sub" / "file.md").write_text("x", encoding="utf-8")
+        (self.private / "sub" / "file.md").write_text("x", encoding="utf-8", newline="\n")
 
     def test_blocks_root_inside_and_below(self) -> None:
         deny = DenyRoots([self.private])
@@ -85,6 +86,7 @@ class DenyRootTests(unittest.TestCase):
         self.assertTrue(deny.blocks(self.private / "sub" / "file.md"))
         self.assertFalse(deny.blocks(self.project.root))
 
+    @helpers.requires_symlinks
     def test_blocks_through_symlink_and_dotdot(self) -> None:
         deny = DenyRoots([self.private])
         link = self.project.symlink("link", self.private / "sub")
@@ -102,9 +104,10 @@ class DenyRootTests(unittest.TestCase):
         self.assertFalse(deny)
         self.assertFalse(deny.blocks(self.project.root))
 
+    @helpers.requires_symlinks
     def test_deny_root_given_via_symlink(self) -> None:
         alias = self.project.base / "alias"
-        os.symlink(self.private, alias)
+        os.symlink(self.private, alias, target_is_directory=True)
         self.assertTrue(DenyRoots([alias]).blocks(self.private / "sub"))
 
 

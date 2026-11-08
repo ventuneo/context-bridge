@@ -34,7 +34,8 @@ prefer not to be named.
 In scope are ways for project content, a pack, a commit subject or a configuration file to make
 Context Bridge:
 
-- read files outside the approved sources, or inside a denied location;
+- read files outside the approved sources, or inside a denied location, for example through a
+  symbolic link, a directory junction or a Windows device name;
 - write outside `.context-bridge/` or outside a confirmed `setup` target;
 - put secrets or personal data into a pack;
 - skip the approval of new sources;
@@ -48,7 +49,6 @@ Out of scope:
   warnings. Please report such cases anyway: they help to improve the wording. This limit is
   documented.
 - Attacks that require a modified Context Bridge installation or control over your user account.
-- Windows, which is not supported yet.
 
 ## Design
 
