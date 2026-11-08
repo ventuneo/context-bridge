@@ -7,6 +7,16 @@ the command line or the pack format; such changes are listed under **Changed**.
 
 ## [Unreleased]
 
+## [0.3.1] - Unreleased
+
+### Fixed
+
+- Smart extraction no longer sorts quoted examples: a line that quotes "we decided" or "TODO"
+  (in quotation marks or as inline code) is not a decision or a task. Apostrophes as in "we've"
+  never start a quotation, and a decision that quotes a name is still a decision.
+- A Markdown table row is no longer an open question only because its cells end with a question
+  mark, as in a comparison table with a "Question" row. Cue phrases in table rows still count.
+
 ## [0.3.0] - 2026-11-08
 
 Smart extraction.
@@ -134,7 +144,8 @@ First public release.
 - Approvals are stored outside the project, so a repository cannot ship its own approval.
 - git runs read-only, and it is skipped when a repository's configuration could start programs.
 
-[Unreleased]: https://github.com/ventuneo/context-bridge/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ventuneo/context-bridge/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/ventuneo/context-bridge/releases/tag/v0.3.1
 [0.3.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.1.0

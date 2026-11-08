@@ -71,17 +71,17 @@ Context Bridge is installed from this repository. It is not distributed through 
 marketplace.
 
 ```sh
-git clone --branch v0.3.0 --depth 1 https://github.com/ventuneo/context-bridge.git ~/.local/share/context-bridge
+git clone --branch v0.3.1 --depth 1 https://github.com/ventuneo/context-bridge.git ~/.local/share/context-bridge
 mkdir -p ~/.claude/skills
 ln -s ~/.local/share/context-bridge/skills/context-bridge ~/.claude/skills/context-bridge
-python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version   # context-bridge 0.3.0
+python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version   # context-bridge 0.3.1
 ```
 
 On Windows, in PowerShell (a directory junction instead of a symbolic link, so no administrator
 rights are needed):
 
 ```powershell
-git clone --branch v0.3.0 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:LOCALAPPDATA\Programs\context-bridge"
+git clone --branch v0.3.1 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:LOCALAPPDATA\Programs\context-bridge"
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills" | Out-Null
 New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\context-bridge" -Target "$env:LOCALAPPDATA\Programs\context-bridge\skills\context-bridge"
 python -I "$env:USERPROFILE\.claude\skills\context-bridge\scripts\cb.py" --version   # or: py -3 -I ...
