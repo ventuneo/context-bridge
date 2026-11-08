@@ -17,8 +17,8 @@ entry and further integrations come after the MVP.
 | M8 Release preparation | README and docs for users and contributors, community files, CI on Linux and macOS with Python 3.11–3.15, fresh-install smoke test | Fresh install works in an isolated home folder |
 | M9 Windows and WSL 2 | Platform layer (home and data folders, unsafe Windows names, junctions, path keys, retries, UTF-8 output), Windows install with a directory junction, exec-form hook, PowerShell forms in the skill, CI on Windows | CI green on Linux, macOS and Windows; fresh install works on Windows |
 
-Status: M0–M8 done; version 0.1.0 was published on 2026-11-08. M9 (version 0.2.0) is implemented and
-waits for its first CI run on Windows. Claude Code on Windows is not tested yet.
+Status: M0–M9 done: version 0.1.0 and version 0.2.0 (Windows and WSL 2). CI tests every change on
+Linux, macOS and Windows with Python 3.11–3.15. Claude Code itself on Windows is not tested yet.
 
 ## Planned after the MVP
 

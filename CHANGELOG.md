@@ -7,7 +7,7 @@ the command line or the pack format; such changes are listed under **Changed**.
 
 ## [Unreleased]
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-11-08
 
 Windows and WSL 2.
 
@@ -48,6 +48,8 @@ Windows and WSL 2.
   code page or a Latin-1 locale. Before, characters such as ⚠ could make it fail.
 - Files with CRLF line endings give the same items as files with LF.
 - Replacing a file retries for a moment while another process holds it (Windows).
+- A user configuration with Windows paths in double quotes, where TOML reads the backslash as an
+  escape, now gets an error that says how to write them: in single quotes or with forward slashes.
 
 ## [0.1.0] - 2026-11-08
 
