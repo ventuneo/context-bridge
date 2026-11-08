@@ -106,6 +106,12 @@ _CUES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
 )
 _IMAGE_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+# Quoted text and inline code are examples or names, not what the author states: "we decided" in
+# quotes is no decision. A single quote counts only when no letter touches it from outside, so the
+# apostrophe in "we've" or "don't" never starts a quotation.
+_QUOTED_RE = re.compile(
+    r'"[^"\n]*"|“[^”\n]*”|„[^“”\n]*[“”]|«[^»\n]*»|»[^«\n]*«|‹[^›\n]*›|‘[^’\n]*’|(?<!\w)\'[^\'\n]+\'(?!\w)|`[^`\n]*`'
+)
 # A sentence ends at . ! or ? (and closing quotes) before a capital letter or digit, except after an
 # abbreviation (z. B., d. h., e.g., Nr.) or an ordinal number (1. Juli).
 _SENTENCE_END = re.compile(r"[.!?]+[\"”“»)\]]*\s+(?=[\"„“«(\[]?[A-ZÄÖÜ0-9])")
@@ -171,12 +177,17 @@ def classify_heading(text: str) -> tuple[str | None, str | None]:
     return None, status
 
 
-def infer_section(text: str) -> str | None:
-    """The section that the wording of ``text`` names (a decision, a task …), or None."""
+def infer_section(text: str, questions: bool = True) -> str | None:
+    """The section that the wording of ``text`` names (a decision, a task …), or None.
+
+    Quoted text and inline code do not count. With ``questions=False`` (table rows, whose cells
+    often hold questions as labels) a final question mark does not make an open question.
+    """
+    own = _QUOTED_RE.sub(" ", text)
     for key, pattern in _CUES:
-        if pattern.search(text):
+        if pattern.search(own):
             return key
-    return "open_questions" if text.rstrip().endswith("?") else None
+    return "open_questions" if questions and text.rstrip().endswith("?") else None
 
 
 def sentences(text: str) -> list[tuple[int, int]]:
@@ -290,7 +301,7 @@ class _Extractor:
             )
         )
 
-    def smart_item(self, text: str, ctx: _Context, start: int, end: int) -> None:
+    def smart_item(self, text: str, ctx: _Context, start: int, end: int, questions: bool = True) -> None:
         """One statement that no heading sorts: by its wording, or as an unclassified note."""
         if ctx.skipped or not _has_words(text):
             return
@@ -298,7 +309,7 @@ class _Extractor:
             self.regions[-1].over_limit += 1
             return
         self.smart += 1
-        section = infer_section(text)
+        section = infer_section(text, questions)
         if section:
             self.add(section, text, status_for(text, ctx.status), "markdown.cue", start, end, (FLAG_INFERRED,))
         else:
@@ -400,7 +411,7 @@ class _Extractor:
         if ctx.section and text:
             self.add(ctx.section, text, status_for(text, ctx.status), "markdown.table_row", lineno, lineno)
         elif text:
-            self.smart_item(text, ctx, lineno, lineno)
+            self.smart_item(text, ctx, lineno, lineno, questions=False)
 
     def code(self, lang: str, lines: list[tuple[int, str]]) -> None:
         if self.context.section != "commands" or lang.casefold() not in _SHELL_LANGS:

@@ -40,7 +40,8 @@ of six text features, calibrated against real token counts (see
 - **Sorting by wording is a heuristic.** It knows few phrases, in English and German only: "we
   decided", "wir haben entschieden", "TODO", "wir müssen noch", "das Ziel ist", a question mark and
   similar. A sentence that reports someone else's decision still counts as a decision; a decision
-  without such words stays an unclassified note. These items are marked `(inferred)`, and
+  without such words stays an unclassified note. Quoted text and inline code do not count, and a
+  question mark does not make a table row a question. These items are marked `(inferred)`, and
   unclassified notes are the first to be left out when the budget is tight.
 - **Statements are found by line length and punctuation.** Short lines count as one statement each;
   wrapped prose is split at sentence ends, except after common abbreviations (z. B., e.g.) and

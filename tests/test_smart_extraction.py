@@ -122,6 +122,45 @@ class CueTests(unittest.TestCase):
                          [("unclassified", "uncertain"), ("open_questions", "uncertain")])  # fmt: skip
 
 
+class QuotedAndTableTests(unittest.TestCase):
+    """Fixed in 0.3.1: quoted examples and question marks in tables are not statements of the author."""
+
+    def test_quoted_cue_phrases_are_examples_not_decisions(self) -> None:
+        text = ("## Notes\n"
+                '- The parser knows phrases such as "we decided" and „wir haben entschieden“.\n'
+                "- Write 'TODO' in the margin.\n- Avoid «das Ziel ist» in titles.\n- Comments like `TODO` are counted.\n")  # fmt: skip
+        self.assertEqual({s for s, *_ in extract(text)}, {"unclassified"})
+
+    def test_real_statements_with_quotes_or_apostrophes_are_still_sorted(self) -> None:
+        self.assertEqual(
+            sections('## Notes\n- We decided to call it "Lieferplan".\n- We’ve decided to keep CSV.\n'
+                     "- We've decided to meet on Fridays.\n- Is the van “safe”?\n"),
+            [("decisions", 'We decided to call it "Lieferplan".'), ("decisions", "We’ve decided to keep CSV."),
+             ("decisions", "We've decided to meet on Fridays."), ("open_questions", "Is the van “safe”?")],
+        )  # fmt: skip
+
+    def test_question_marks_in_table_rows_do_not_make_questions(self) -> None:
+        text = ("## Comparison\n| | Structural validation | Semantic quality |\n|---|---|---|\n"
+                "| Question | Is the pack well-formed? | Does it still contain what matters? |\n"
+                "| Decision log | We decided to use SQLite | - |\n")  # fmt: skip
+        self.assertEqual(
+            sections(text),
+            [("unclassified", "Question · Is the pack well-formed? · Does it still contain what matters?"),
+             ("decisions", "Decision log · We decided to use SQLite · -")],
+        )  # fmt: skip
+
+    def test_the_two_cases_found_in_the_project_docs(self) -> None:
+        readme = ("## Features\n- **Smart extraction** keeps text under headings that no rule recognises. A statement "
+                  'whose wording\n  says what it is ("we decided", "TODO", "das Ziel ist", a question) goes to that '
+                  "section, marked\n  `(inferred)`; everything else becomes an unclassified note.\n")  # fmt: skip
+        quality = ("# Context Quality Score (CQS)\n\n| | Structural validation | Semantic quality (CQS) |\n|---|---|---|\n"
+                   "| Question | Is the pack well-formed, unmodified, safe and fresh? | Does the pack still contain what "
+                   "matters? |\n")  # fmt: skip
+        for text in (readme, quality):
+            with self.subTest(text=text[:30]):
+                self.assertEqual([f for _s, _t, f, *_ in extract(text) if f], [])  # nothing inferred
+
+
 class SplittingTests(unittest.TestCase):
     def test_short_lines_are_separate_statements(self) -> None:
         found = extract("## Diverses\nDer Lieferwagen hat ein Kühlfach.\nSaturdays are for restaurants.\n")
