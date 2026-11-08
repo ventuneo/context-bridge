@@ -19,7 +19,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import gitrun, injection, policy, redact, safepath, tokens
+from . import compat, gitrun, injection, policy, redact, safepath, tokens
 from .config import Config, load_config
 from .errors import EXIT_OK, EXIT_WARNINGS, PolicyViolation, UnsafePathError
 
@@ -128,7 +128,7 @@ def _walk(root: Path, deny: policy.DenyRoots, report: ScanReport) -> list[str]:
         for name in sorted(dirnames):
             full = Path(dirpath, name)
             reason = policy.dir_exclusion(name)
-            if full.is_symlink():
+            if compat.is_link_like(full):  # symbolic link or Windows junction
                 report.exclude(SYMLINKED_DIRECTORY, f"{prefix}{name}/")
             elif reason:
                 report.exclude(reason, f"{prefix}{name}/")

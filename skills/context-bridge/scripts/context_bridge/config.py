@@ -35,7 +35,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from . import safepath
+from . import compat, safepath
 from .errors import ConfigError, UnsafePathError
 from .policy import DEFAULT_INCLUDE, DenyRoots
 
@@ -96,8 +96,7 @@ def user_config_path(env: Mapping[str, str] | None = None) -> Path:
     explicit = env.get("CONTEXT_BRIDGE_CONFIG")
     if explicit:
         return Path(explicit).expanduser()
-    base = env.get("XDG_CONFIG_HOME") or os.path.join(env.get("HOME") or os.path.expanduser("~"), ".config")
-    return Path(base).expanduser() / "context-bridge" / "config.toml"
+    return compat.config_home(env) / "context-bridge" / "config.toml"
 
 
 def _parse(text: str, origin: str) -> dict[str, Any]:

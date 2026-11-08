@@ -14,7 +14,7 @@ import re
 import stat
 from pathlib import Path
 
-from . import safepath
+from . import compat, safepath
 from .errors import UnsafePathError
 
 STORE_DIR = ".context-bridge"
@@ -24,10 +24,10 @@ GITIGNORE = b"# Created by Context Bridge. Context packs are local and must neve
 PACK_NAME_RE = re.compile(r"^(\d{8}T\d{6}Z-[0-9a-f]{6})\.(json|md)$")
 
 
-def _private_dir(path: Path) -> None:
-    if os.path.lexists(path) and (path.is_symlink() or not path.is_dir()):
+def _private_dir(path: Path) -> bool:
+    if os.path.lexists(path) and (compat.is_link_like(path) or not path.is_dir()):
         raise UnsafePathError("unsafe_store", f"refusing to use {path.name}: not a plain directory")
-    safepath.ensure_private_dir(path)
+    return safepath.ensure_private_dir(path)
 
 
 def prepare(root: Path) -> Path:
@@ -52,7 +52,10 @@ def prune(packs: Path, keep: int) -> int:
         for ext in ("json", "md"):
             path = packs / f"{pack_id}.{ext}"
             if os.path.lexists(path) and stat.S_ISREG(os.lstat(path).st_mode):
-                os.unlink(path)
+                try:
+                    os.unlink(path)
+                except PermissionError:  # Windows: another process holds it; the next pack tries again
+                    continue
     return len(old)
 
 
@@ -67,10 +70,14 @@ def write_pack(root: Path, pack_id: str, json_bytes: bytes, md_bytes: bytes, kee
     safepath.atomic_write(store / "latest.md", md_bytes)
     removed = prune(packs, max(1, keep))
     rel = f"{STORE_DIR}/{PACKS_DIR}/{pack_id}"
+    # A file system that ignores chmod (a Windows drive in WSL, some network shares) leaves the
+    # packs readable for other users of the machine; the caller warns about it.
+    private = compat.permissions_enforced(store, 0o700) and compat.permissions_enforced(packs, 0o700)
     return {
         "json": f"{rel}.json",
         "markdown": f"{rel}.md",
         "latest_json": f"{STORE_DIR}/latest.json",
         "latest_markdown": f"{STORE_DIR}/latest.md",
         "pruned": removed,
+        "permissions_enforced": private,
     }

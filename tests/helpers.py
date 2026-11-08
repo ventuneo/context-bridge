@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unittest
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -54,9 +55,10 @@ def _home_guard(event: str, args: tuple) -> None:
         path = os.path.realpath(os.fsdecode(target))
     except (TypeError, ValueError):
         return
-    home = str(_REAL_HOME)
+    path, home = os.path.normcase(path), os.path.normcase(str(_REAL_HOME))  # Windows paths ignore case
     if (path == home or path.startswith(home + os.sep)) and not any(
-        path == allowed or path.startswith(allowed + os.sep) for allowed in _ALLOWED_UNDER_HOME
+        path == os.path.normcase(allowed) or path.startswith(os.path.normcase(allowed) + os.sep)
+        for allowed in _ALLOWED_UNDER_HOME
     ):
         raise HomeAccessError(f"test opened a file in the real home directory: {path}")
 
@@ -64,6 +66,23 @@ def _home_guard(event: str, args: tuple) -> None:
 if not getattr(sys, "_context_bridge_home_guard", False):
     sys.addaudithook(_home_guard)
     sys._context_bridge_home_guard = True  # type: ignore[attr-defined]
+
+
+def _symlinks_supported() -> bool:
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            os.symlink(tmp, os.path.join(tmp, "probe"), target_is_directory=True)
+        except (OSError, NotImplementedError):
+            return False
+    return True
+
+
+SYMLINKS = _symlinks_supported()
+requires_symlinks = unittest.skipUnless(
+    SYMLINKS, "creating symbolic links needs Developer Mode or admin rights on Windows"
+)
+POSIX = os.name == "posix"
+requires_posix_permissions = unittest.skipUnless(POSIX, "Windows has no POSIX permission bits")
 
 
 def make_tempdir() -> Path:
@@ -75,6 +94,9 @@ def isolated_env(home: Path) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "CONTEXT_BRIDGE_", "PYTHON"))}
     env.update(
         HOME=str(home),
+        USERPROFILE=str(home),  # Windows takes the home folder from here, not from HOME
+        APPDATA=str(home / "AppData" / "Roaming"),
+        LOCALAPPDATA=str(home / "AppData" / "Local"),
         XDG_CONFIG_HOME=str(home / ".config"),
         XDG_STATE_HOME=str(home / ".local" / "state"),
         GIT_CONFIG_GLOBAL=os.devnull,
@@ -89,10 +111,14 @@ def isolated_env(home: Path) -> dict[str, str]:
 
 @contextlib.contextmanager
 def patched_home(home: Path) -> Iterator[Path]:
-    """Point HOME and the XDG config/state directories at ``home`` for in-process tests."""
-    keys = ("HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "CONTEXT_BRIDGE_CONFIG")
+    """Point HOME (USERPROFILE on Windows) and the config and state folders at ``home``."""
+    keys = ("HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_STATE_HOME",
+            "CONTEXT_BRIDGE_CONFIG")  # fmt: skip
     saved = {k: os.environ.get(k) for k in keys}
     os.environ["HOME"] = str(home)
+    os.environ["USERPROFILE"] = str(home)
+    os.environ["APPDATA"] = str(home / "AppData" / "Roaming")
+    os.environ["LOCALAPPDATA"] = str(home / "AppData" / "Local")
     os.environ["XDG_CONFIG_HOME"] = str(home / ".config")
     os.environ["XDG_STATE_HOME"] = str(home / ".local" / "state")
     os.environ.pop("CONTEXT_BRIDGE_CONFIG", None)

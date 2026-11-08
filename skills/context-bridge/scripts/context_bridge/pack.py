@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from . import __version__, injection, policy, redact, safepath, store
+from . import __version__, compat, injection, policy, redact, safepath, store
 from . import consent as consent_mod
 from . import scan as scan_mod
 from .budget import (
@@ -426,6 +426,8 @@ def build(
         exit_code = EXIT_CRITICAL_LOSS
     elif redactions or any(w["severity"] in ("warning", "critical") for w in warnings):
         exit_code = EXIT_WARNINGS
+    elif paths is not None and not paths["permissions_enforced"]:
+        exit_code = EXIT_WARNINGS
     else:
         exit_code = EXIT_OK
     return PackResult(pack, md, paths, selection, pending, exit_code)
@@ -520,6 +522,12 @@ def run_cli(args: argparse.Namespace) -> int:
             f"(critical {tiers['critical']}, important {tiers['important']}, context {tiers['context']}) · "
             f"left out {sum(d['items'] for d in b['dropped'])} · duplicates merged {b['duplicates_removed']}",
         ]
+        if not result.paths["permissions_enforced"]:
+            where = " (a Windows drive in WSL; keep projects in the Linux file system)" if compat.is_wsl() else ""
+            lines.append(
+                f"warning: this file system ignores file permissions{where}: other users of this machine "
+                "may be able to read .context-bridge/."
+            )
         if result.pending:
             lines.append(
                 f"New sources waiting for approval (not included): {_names(result.pending)}. "
