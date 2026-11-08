@@ -92,8 +92,11 @@ class Smoke:
         self.passed += 1
         print(f"ok   {name}")
 
+    def setup_cmd(self, *args: str, cwd: Path) -> subprocess.CompletedProcess:
+        return self.cb("setup", *args, cwd=cwd, codes=(0, 1))  # exit 1: done, with a warning to read
+
     def preview_id(self, *args: str, cwd: Path) -> tuple[str, dict]:
-        data = json.loads(self.cb("setup", *args, "--json", cwd=cwd).stdout)
+        data = json.loads(self.setup_cmd(*args, "--json", cwd=cwd).stdout)
         return data.get("preview_id", ""), data
 
     # --- steps -----------------------------------------------------------------------------
@@ -165,10 +168,10 @@ class Smoke:
         return project
 
     def setup(self, project: Path) -> None:
-        self.cb("setup", "status", "--root", ".", cwd=project)
+        self.setup_cmd("status", "--root", ".", cwd=project)
         pid, data = self.preview_id("preview", "--target", "global", "--hook", "--root", ".", cwd=project)
         self.check("setup: hook preview", data["action"] == "install" and '"timeout": 10' in data["diff"])
-        self.cb("setup", "apply", "--target", "global", "--hook", "--confirm", pid, "--root", ".", cwd=project)
+        self.setup_cmd("apply", "--target", "global", "--hook", "--confirm", pid, "--root", ".", cwd=project)
         settings = json.loads((self.home / ".claude" / "settings.json").read_text(encoding="utf-8"))
         kept = settings["theme"] == "dark" and settings["hooks"]["SessionEnd"][0]["hooks"][0]["command"] == "true"
         ours = [h["command"] for e in settings["hooks"]["SessionStart"] for h in e["hooks"]]
@@ -187,7 +190,7 @@ class Smoke:
         )
 
         pid, data = self.preview_id("preview", "--target", "global", "--root", ".", cwd=project)
-        self.cb("setup", "apply", "--target", "global", "--confirm", pid, "--root", ".", cwd=project)
+        self.setup_cmd("apply", "--target", "global", "--confirm", pid, "--root", ".", cwd=project)
         claude_md = (self.home / ".claude" / "CLAUDE.md").read_text(encoding="utf-8")
         block = "<!-- context-bridge:begin v1 -->" in claude_md and claude_md.startswith("# My rules")
         self.check("setup: CLAUDE.md block added after the existing rules", block and "run `resume`" not in claude_md)
@@ -198,7 +201,7 @@ class Smoke:
     def uninstall(self, project: Path, before: dict[str, bytes]) -> None:
         for extra in (("--hook",), ()):
             pid, _ = self.preview_id("undo-preview", "--target", "global", *extra, "--root", ".", cwd=project)
-            self.cb("setup", "undo", "--target", "global", *extra, "--confirm", pid, "--root", ".", cwd=project)
+            self.setup_cmd("undo", "--target", "global", *extra, "--confirm", pid, "--root", ".", cwd=project)
         claude = self.home / ".claude"
         restored = all(
             tree(self.home)[f".claude/{n}"] == before[f".claude/{n}"] for n in ("CLAUDE.md", "settings.json")
