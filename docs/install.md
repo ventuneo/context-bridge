@@ -20,7 +20,7 @@ putting the folder `skills/context-bridge` where Claude Code looks for skills.
 1. Clone a release tag. Any folder works; the examples use `~/.local/share/context-bridge`:
 
    ```sh
-   git clone --branch v0.3.1 --depth 1 https://github.com/ventuneo/context-bridge.git ~/.local/share/context-bridge
+   git clone --branch v0.4.0 --depth 1 https://github.com/ventuneo/context-bridge.git ~/.local/share/context-bridge
    ```
 
 2. Link the skill folder into your personal skills folder:
@@ -37,7 +37,7 @@ putting the folder `skills/context-bridge` where Claude Code looks for skills.
 
    ```sh
    python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version
-   # context-bridge 0.3.1
+   # context-bridge 0.4.0
    ```
 
 4. Start a new Claude Code session and ask "What does the context-bridge skill do?" or type
@@ -53,7 +53,7 @@ Run the commands in PowerShell. The examples clone into `%LOCALAPPDATA%\Programs
 1. Clone a release tag:
 
    ```powershell
-   git clone --branch v0.3.1 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:LOCALAPPDATA\Programs\context-bridge"
+   git clone --branch v0.4.0 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:LOCALAPPDATA\Programs\context-bridge"
    ```
 
 2. Link the skill folder into your personal skills folder with a directory junction. Unlike a
@@ -68,7 +68,7 @@ Run the commands in PowerShell. The examples clone into `%LOCALAPPDATA%\Programs
 
    ```powershell
    python -I "$env:USERPROFILE\.claude\skills\context-bridge\scripts\cb.py" --version
-   # context-bridge 0.3.1
+   # context-bridge 0.4.0
    ```
 
    If `python` is not found or opens the Microsoft Store, use the launcher instead:
@@ -99,7 +99,7 @@ To give everyone who works on a project the skill, copy the folder into the proj
 rather than linking it, because a link into your home folder would not exist on other machines.
 
 ```sh
-git clone --branch v0.3.1 --depth 1 https://github.com/ventuneo/context-bridge.git /tmp/context-bridge
+git clone --branch v0.4.0 --depth 1 https://github.com/ventuneo/context-bridge.git /tmp/context-bridge
 mkdir -p .claude/skills
 cp -R /tmp/context-bridge/skills/context-bridge .claude/skills/
 rm -rf /tmp/context-bridge
@@ -108,7 +108,7 @@ rm -rf /tmp/context-bridge
 On Windows, in PowerShell:
 
 ```powershell
-git clone --branch v0.3.1 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:TEMP\context-bridge"
+git clone --branch v0.4.0 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:TEMP\context-bridge"
 New-Item -ItemType Directory -Force .claude\skills | Out-Null
 Copy-Item -Recurse "$env:TEMP\context-bridge\skills\context-bridge" .claude\skills\
 Remove-Item -Recurse -Force "$env:TEMP\context-bridge"
@@ -120,7 +120,7 @@ and per project.
 
 ## Check what you install
 
-- **Pin a version.** Clone a tag (`--branch v0.3.1`), not the default branch. The release notes
+- **Pin a version.** Clone a tag (`--branch v0.4.0`), not the default branch. The release notes
   name the commit of each tag:
 
   ```sh
@@ -145,16 +145,16 @@ and per project.
 Read the [changelog](../CHANGELOG.md) first, then switch the clone to the new tag:
 
 ```sh
-git -C ~/.local/share/context-bridge fetch --depth 1 origin tag v0.3.1
-git -C ~/.local/share/context-bridge checkout v0.3.1
+git -C ~/.local/share/context-bridge fetch --depth 1 origin tag v0.4.0
+git -C ~/.local/share/context-bridge checkout v0.4.0
 python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-git -C "$env:LOCALAPPDATA\Programs\context-bridge" fetch --depth 1 origin tag v0.3.1
-git -C "$env:LOCALAPPDATA\Programs\context-bridge" checkout v0.3.1
+git -C "$env:LOCALAPPDATA\Programs\context-bridge" fetch --depth 1 origin tag v0.4.0
+git -C "$env:LOCALAPPDATA\Programs\context-bridge" checkout v0.4.0
 python -I "$env:USERPROFILE\.claude\skills\context-bridge\scripts\cb.py" --version
 ```
 
@@ -162,6 +162,10 @@ Start a new Claude Code session afterwards. In a project that uses the integrati
 `cb.py setup status --root .` to see whether the CLAUDE.md block is current. Packs written by an
 older version are still checked. If `verify` reports `renderer_changed` or another format, create a
 new pack.
+
+From 0.3 or older to 0.4: packs written before 0.4 fail with `pack_not_local` until you pack once
+more, and the SessionStart hook says so in one line. Sources are approved with the `approve`
+command instead of `pack --approve`; existing approvals stay valid.
 
 On Windows, the SessionStart hook starts Python by its full path. After you remove that Python or
 move to a new minor version, which installs into a new folder, run

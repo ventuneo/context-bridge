@@ -7,6 +7,10 @@ the command line or the pack format; such changes are listed under **Changed**.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-08
+
+Security release. Please update; see **Changed** for the two steps it takes.
+
 ### Security
 
 - A pack that came with the project is no longer loaded as verified. Until now, a pack committed
@@ -173,7 +177,8 @@ First public release.
 - Approvals are stored outside the project, so a repository cannot ship its own approval.
 - git runs read-only, and it is skipped when a repository's configuration could start programs.
 
-[Unreleased]: https://github.com/ventuneo/context-bridge/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/ventuneo/context-bridge/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.4.0
 [0.3.1]: https://github.com/ventuneo/context-bridge/releases/tag/v0.3.1
 [0.3.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.2.0
