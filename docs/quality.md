@@ -20,6 +20,7 @@ so the repository never contains secret-looking strings.
 | `conflicts` | small | contradicting goal and decision, superseded ADR, the same statement in the session and a file |
 | `injection` | small | instruction-like text, fake system tags, hidden comments, invisible tag characters, secrets, personal data |
 | `large` | large | 10 ADRs, two rule files, roadmap, operations, 40 generated guides, 400 code files, about 23 000 tokens read |
+| `notes` | small | German and English meeting notes and wiki prose without recognised headings: decisions, goals, tasks and questions only by their wording, a decision inside prose, a licence that must be skipped |
 
 Each case has `project/`, `handoff.json` and `expected.json`. Every expected item has an id,
 a category (goal, constraint, decision, next_step, fact, assumption, open_question), a
@@ -45,6 +46,11 @@ Every number is counted from the ground truth:
   trust notice, coverage line and sources table), tokens read from the sources, compression ratio
   (pack ÷ sources) and points per 1000 pack tokens.
 - **Loss reporting**: whether `pack` (exit 3) and `verify` (exit 3) report a critical loss.
+- **Source coverage** (since 0.3): of the lines a reader reads in the Markdown sources (not blank,
+  not a heading, code, a table rule, hidden text or a badge row), the share that lies inside an
+  extracted item (`src`), and the share inside an item the pack kept (`kept`). Manifests and
+  changelogs are not counted: they are read field by field, not line by line. A duplicate kept from
+  another file counts for that file only.
 
 Each case runs at budgets 500, 1000, 2000 and 4000 in two modes: `soft` (default: critical
 items are protected, the budget may be exceeded) and `hard` (`--hard-budget`: the budget is
@@ -63,7 +69,8 @@ never exceeded).
 6. `large`: compression ratio ≤ 0.2 at the reference budget.
 7. The score never drops when the budget grows.
 8. No regression against `quality/baseline.json` (CQS may not fall by more than 5 points,
-   critical recall may not fall at all).
+   critical recall may not fall at all, source coverage may not fall by more than 2 points).
+9. `notes`: source coverage ≥ 85 % at the reference budget (gate `min_source_coverage`).
 
 ## Token estimate
 
@@ -151,6 +158,26 @@ The baseline records the estimate it was measured with (`"estimator": "calibrate
 fails when that differs from the estimate in use, so a recalibration always comes with a
 deliberate new baseline.
 
+## Smart extraction (0.3)
+
+Before 0.3, text under headings that no rule recognises was dropped without a trace. Now it is
+sorted by its wording or kept as an unclassified note (see [limitations](limitations.md)). Measured
+on 8 November 2026 at each case's reference budget, with the extraction of 0.2.0 and of 0.3 on the
+same cases and with the same metrics:
+
+| Case | CQS 0.2.0 → 0.3 | Source coverage 0.2.0 → 0.3 | In the pack 0.2.0 → 0.3 |
+|---|---|---|---|
+| `notes` | 9.1 → 100 | 5 % → 95 % | 5 % → 95 % |
+| `large` (4000) | 97.1 → 97.1 | 40 % → 100 % | 14 % → 14 % |
+| `basic` | 100 → 100 | 88 % → 96 % | 88 % → 88 % |
+| `conflicts`, `german`, `injection` | 100 → 100 | 100 % → 100 % | 100 % → 100 % |
+
+No CQS value of the five older cases changed at any budget or mode, so the baseline only gained the
+`notes` case and the coverage values. Extracting more is not free: at 2000 tokens `basic` now
+reports PARTIAL coverage, because its unclassified notes do not all fit; they are the first to be
+left out, and the coverage statement counts them. The large project keeps 14 % of its lines at 4000
+tokens either way: its budget is full of critical items.
+
 ## Running
 
 ```sh
@@ -170,3 +197,5 @@ python3 -I quality/run.py --update-baseline               # after an intended ch
   samples (see «Token estimate»). Tokenizers other than Claude's may count differently.
 - Under `--hard-budget` the critical tier is cut in section order (goals, constraints,
   decisions, next steps), so later critical sections are lost first.
+- Source coverage says how much text reached an item, not whether the item is in the right
+  section; that is what the CQS checks for the expected items.

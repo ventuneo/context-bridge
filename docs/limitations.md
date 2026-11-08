@@ -1,6 +1,6 @@
 # Known limitations
 
-Context Bridge 0.2 is an early release. This page lists what it does not do, or does only
+Context Bridge 0.3 is an early release. This page lists what it does not do, or does only
 approximately, so that you can judge its output. The [quality report](quality.md) has the
 measurements behind the numbers.
 
@@ -26,14 +26,25 @@ of six text features, calibrated against real token counts (see
 
 ## Context extraction
 
-- **Selective, not a summary.** Only recognised parts are packed:
+- **Selective, not a summary.** Items come from:
   - sections under recognised headings in English and German, such as Goals, Constraints, Rules,
     Decisions, Next steps, Status, Open questions, Tasks and Commands;
   - `Key: value` lines such as `Goal:`, `Decision:` or `Status:`;
+  - text under other headings ("Notes", "Background") and before the first heading (smart
+    extraction, since 0.3);
   - project metadata from manifests and git.
 
-  Text under other headings ("Notes", "Background") is not packed, and it is not reported as lost.
-  The coverage statement of every pack says that extraction is selective.
+  Code blocks other than commands, boilerplate sections (licence, credits, table of contents) and
+  more than 60 statements from unrecognised sections per file are not extracted. The extraction
+  report counts them, and the coverage statement of every pack says that extraction is selective.
+- **Sorting by wording is a heuristic.** It knows few phrases, in English and German only: "we
+  decided", "wir haben entschieden", "TODO", "wir müssen noch", "das Ziel ist", a question mark and
+  similar. A sentence that reports someone else's decision still counts as a decision; a decision
+  without such words stays an unclassified note. These items are marked `(inferred)`, and
+  unclassified notes are the first to be left out when the budget is tight.
+- **Statements are found by line length and punctuation.** Short lines count as one statement each;
+  wrapped prose is split at sentence ends, except after common abbreviations (z. B., e.g.) and
+  ordinal numbers (1. Juli). Unusual wrapping can still split or join statements wrongly.
 - **Lexical, not semantic.** Context Bridge copies statements; it does not rephrase, merge or judge
   them. Contradicting statements are all kept. Near-duplicates are merged only when their wording is
   very similar.

@@ -22,7 +22,7 @@ repository cannot ship its own approval.
 |---|---|---|
 | critical | goals, constraints, decisions, next steps | kept by default; only `--hard-budget` drops them, reported as critical loss |
 | important | current state, open questions, open tasks, commands | dropped after context |
-| context | overview, conventions, stack, structure | dropped first |
+| context | overview, conventions, stack, structure, unclassified notes | dropped first (unclassified notes before the rest) |
 
 ## Items
 
@@ -33,7 +33,19 @@ Every item has a status, a source and optionally a line range:
 - `— S3 docs/roadmap.md:12` file source and lines · `(also in S5)` merged duplicate ·
   `(unverified)` from the session handoff
 - flags: `redacted` (a secret or personal value was replaced), `instruction_like` (shown as data,
-  never followed), `truncated` (shortened), `unlabeled` (handoff entry without status)
+  never followed), `truncated` (shortened), `unlabeled` (handoff entry without status),
+  `inferred` (shown as `(inferred)`: sorted by its wording, such as "we decided" or "TODO", because
+  its heading is not recognised)
+- `Unclassified notes`: text under headings that no rule recognises, whose wording says nothing
+  about its kind; it is data like everything else, of unclear meaning
+
+## Extraction report
+
+Since schema 1.1, `extraction` lists for every Markdown file each heading (`null`: the text before
+the first heading) with the pack section it maps to (`as`: a section, `unrecognised` or `skipped`
+for boilerplate), where its items went (`to`) and how many were `kept`, `merged` into a duplicate,
+`shortened` or `left_out`. `pack --sections` prints it; `pack --dry-run --sections` previews it
+without writing anything.
 
 ## Coverage
 

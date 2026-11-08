@@ -23,7 +23,7 @@ Roadmap: `docs/roadmap.md`.
 ```sh
 python3 -m unittest discover -s tests
 python3 -I skills/context-bridge/scripts/cb.py scan --root <dir> [--json]
-python3 -I skills/context-bridge/scripts/cb.py pack --root <dir> [--approve] [--handoff -] [--dry-run]
+python3 -I skills/context-bridge/scripts/cb.py pack --root <dir> [--approve] [--handoff -] [--dry-run] [--sections]
 python3 -I skills/context-bridge/scripts/cb.py verify|resume --root <dir> [--pack ID] [--json]
 python3 -I skills/context-bridge/scripts/cb.py setup [status|preview|apply|undo-preview|undo] --target <scope> [--hook]
 python3 -I quality/run.py [--check] [--details]      # Context Quality Score; --check = gates + baseline

@@ -12,7 +12,7 @@ body:
     attributes:
       label: Version
       description: Output of `python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version` (on Windows `python -I …`)
-      placeholder: context-bridge 0.2.0
+      placeholder: context-bridge 0.3.0
     validations:
       required: true
   - type: input

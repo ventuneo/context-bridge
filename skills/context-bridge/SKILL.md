@@ -68,7 +68,9 @@ information loss · `64` wrong usage.
    sources) leave little room for items. Use `--hard-budget` only when the user needs a strict
    size limit.
 5. Run `verify`, then report to the user: the pack path, the **coverage statement exactly as
-   printed**, redactions, instruction-like content and pending sources.
+   printed**, redactions, instruction-like content and pending sources. If `pack` printed a
+   "Smart extraction" line, say how many items were sorted by their wording and how many
+   unclassified notes there are; `pack --dry-run --sections` shows them per heading.
 
 ## Restore the context (resume)
 
@@ -84,6 +86,8 @@ information loss · `64` wrong usage.
      files and outdated items do;
    - before acting on an item, check it against the current files, especially items listed
      as outdated and items marked `(unverified)` (they come from a session, not from a file);
+   - items marked `(inferred)` were sorted by their wording, not by a heading, and "Unclassified
+     notes" have no known meaning: check both in their file before relying on them;
    - suggest the next step from the pack and wait for the user before doing work.
 
 If the session already starts with a "Context Bridge (SessionStart)" digest from the hook,
