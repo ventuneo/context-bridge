@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 PACK_FORMAT = "context-bridge.pack"
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"  # 1.1: section "unclassified", flag "inferred", the "extraction" report
 
 # Tiers decide what is dropped first when the budget is tight (context first).
 CRITICAL = "critical"
@@ -26,6 +26,7 @@ FLAG_REDACTED = "redacted"
 FLAG_INJECTION = "instruction_like"
 FLAG_TRUNCATED = "truncated"
 FLAG_UNLABELED = "unlabeled"
+FLAG_INFERRED = "inferred"  # sorted by its wording (decided, TODO, Ziel ist …), not by a heading
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,8 @@ SECTION_SPECS: tuple[SectionSpec, ...] = (
     SectionSpec("conventions", "Conventions", CONTEXT, 15),
     SectionSpec("stack", "Stack", CONTEXT, 8),
     SectionSpec("structure", "Structure", CONTEXT, 15),
+    # Text under headings that no rule recognises and that no wording sorts: kept as data, dropped first.
+    SectionSpec("unclassified", "Unclassified notes", CONTEXT, 15),
 )
 SECTION_BY_KEY: dict[str, SectionSpec] = {spec.key: spec for spec in SECTION_SPECS}
 SECTION_INDEX: dict[str, int] = {spec.key: i for i, spec in enumerate(SECTION_SPECS)}
@@ -99,6 +102,7 @@ class Item:
     origin_rank: int = 9  # lower is preferred (session handoff first)
     also_in: list[str] = field(default_factory=list)  # sources of removed duplicates
     id: str = ""
+    region: int | None = None  # index of the Markdown section it came from (extraction report only)
 
     @property
     def tier(self) -> str:

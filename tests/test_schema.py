@@ -57,7 +57,8 @@ class SchemaTests(unittest.TestCase):
     def test_json_schema_file_matches_the_validator(self) -> None:
         published = json.loads(SCHEMA_FILE.read_text(encoding="utf-8"))
         self.assertEqual(published["$schema"], "https://json-schema.org/draft/2020-12/schema")
-        self.assertEqual(set(published["required"]), set(self.pack))
+        optional = {"extraction"}  # since schema 1.1; packs of 1.0 have none
+        self.assertEqual(set(published["required"]), set(self.pack) - optional)
         self.assertEqual(set(published["properties"]), set(self.pack))
         sections = published["$defs"]["section_key"]["enum"]
         self.assertEqual(sections, [s.key for s in pack.SECTION_SPECS])

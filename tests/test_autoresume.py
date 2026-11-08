@@ -5,6 +5,7 @@ All projects are synthetic; HOME and the consent store are fake.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
 import os
@@ -87,7 +88,8 @@ class SessionStartTests(HookTestCase):
     def test_nothing_without_a_pack_or_outside_a_project(self) -> None:
         self.assertEqual(autoresume.digest(self.stdin()), "")
         self.assertEqual(autoresume.digest(self.stdin(cwd=self.project.base / "missing")), "")
-        self.assertEqual(autoresume.digest(b""), "")  # no stdin: current directory, no pack there
+        with tempfile.TemporaryDirectory() as empty, contextlib.chdir(empty):
+            self.assertEqual(autoresume.digest(b""), "")  # no stdin: the current directory, which has no pack
 
     def test_invalid_input_never_breaks_the_session(self) -> None:
         self.make_pack()

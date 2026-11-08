@@ -29,9 +29,9 @@ class HeadingRoutingTests(unittest.TestCase):
     def test_subheadings_inherit_their_parent_section(self) -> None:
         self.assertEqual(md("## Rules\n### Python\n- Use the standard library.\n")[0][0], "constraints")
 
-    def test_unclassified_sections_are_ignored_except_agent_rules(self) -> None:
+    def test_unrecognised_sections_become_notes_except_agent_rules(self) -> None:
         text = "## Random notes\n- something\n"
-        self.assertEqual(md(text), [])
+        self.assertEqual(md(text), [("unclassified", "fact", "something")])  # kept as data, not dropped (0.3)
         self.assertEqual(md(text, kind="agent_rules"), [("conventions", "fact", "something")])
 
     def test_readme_overview_skips_badges(self) -> None:
@@ -87,7 +87,8 @@ class StructureTests(unittest.TestCase):
         items, title = markdown.extract("# Use PostgreSQL\n\n## Context\nWe need SQL.\n", "S1", "decisions", 1)
         self.assertEqual(title, "Use PostgreSQL")
         self.assertEqual([(i.section, i.text, i.extractor) for i in items],
-                         [("decisions", "Use PostgreSQL", "markdown.title")])  # fmt: skip
+                         [("unclassified", "We need SQL.", "markdown.unclassified"),  # the ADR context (0.3)
+                          ("decisions", "Use PostgreSQL", "markdown.title")])  # fmt: skip
 
 
 class ManifestTests(unittest.TestCase):

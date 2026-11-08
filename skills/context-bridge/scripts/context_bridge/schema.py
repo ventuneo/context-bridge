@@ -15,6 +15,7 @@ from typing import Any
 from .budget import COVERAGE_STATUSES
 from .model import (
     CRITICAL,
+    FLAG_INFERRED,
     FLAG_INJECTION,
     FLAG_REDACTED,
     FLAG_TRUNCATED,
@@ -32,7 +33,9 @@ from .model import (
 
 SUPPORTED_MAJOR = "1"
 MAX_TEXT = 4000
-FLAGS = {FLAG_REDACTED, FLAG_INJECTION, FLAG_TRUNCATED, FLAG_UNLABELED}
+FLAGS = {FLAG_REDACTED, FLAG_INJECTION, FLAG_TRUNCATED, FLAG_UNLABELED, FLAG_INFERRED}
+REGION_AS = {"unrecognised", "skipped"}  # besides the section keys
+REGION_COUNTS = ("extracted", "kept", "merged", "shortened", "left_out", "inferred", "unclassified", "not_extracted")
 ORIGINS = {ORIGIN_FILE, ORIGIN_EXTERNAL, ORIGIN_GIT, ORIGIN_FILE_LIST, ORIGIN_SESSION}
 SEVERITIES = {"info", "warning", "critical"}
 LOSS_REASONS = {"dropped", "truncated"}
@@ -91,6 +94,35 @@ class _Validator:
             self.error(path, "must be [start, end] with 1 <= start <= end")
 
 
+def _validate_extraction(v: _Validator, report: dict[str, Any]) -> None:
+    """The extraction report: per Markdown file, what each heading contributed (counts only)."""
+    if not v.obj(report, "pack.extraction", {"sources": list}):
+        return
+    for s, source in enumerate(report["sources"]):
+        path = f"pack.extraction.sources[{s}]"
+        if not v.obj(source, path, {"label": str, "regions": list}):
+            continue
+        for r, region in enumerate(source["regions"]):
+            rpath = f"{path}.regions[{r}]"
+            if not v.obj(
+                region,
+                rpath,
+                {"heading": "str?", "line": int, "as": str, "to": dict, **dict.fromkeys(REGION_COUNTS, int)},
+            ):
+                continue
+            if region["as"] not in SECTION_BY_KEY and region["as"] not in REGION_AS:
+                v.error(f"{rpath}.as", "unknown value")
+            if region["line"] < 1 or any(region[key] < 0 for key in REGION_COUNTS):
+                v.error(rpath, "line must be at least 1 and counts must not be negative")
+            to = region.get("to")
+            if not isinstance(to, dict) or any(k not in SECTION_BY_KEY or not _is(n, int) for k, n in to.items()):
+                v.error(f"{rpath}.to", "must map pack sections to counts")
+            elif sum(to.values()) != region["extracted"]:
+                v.error(f"{rpath}.to", "must add up to extracted")
+            if region["kept"] + region["merged"] + region["left_out"] != region["extracted"]:
+                v.error(rpath, "kept, merged and left_out must add up to extracted")
+
+
 def validate(pack: Any) -> list[str]:
     v = _Validator()
     top = {
@@ -99,7 +131,7 @@ def validate(pack: Any) -> list[str]:
         "sources": list, "considered_sources": list, "sections": list, "redactions": dict, "warnings": list,
         "integrity": dict,
     }  # fmt: skip
-    if not v.obj(pack, "pack", top):
+    if not v.obj(pack, "pack", top, {"extraction": dict}):  # extraction: since schema 1.1
         return v.problems
     if pack["format"] != PACK_FORMAT:
         v.error("pack.format", f"must be '{PACK_FORMAT}'")
@@ -107,6 +139,8 @@ def validate(pack: Any) -> list[str]:
     if not version or version.group(1) != SUPPORTED_MAJOR:
         v.error("pack.schema_version", f"unsupported version (supported: {SUPPORTED_MAJOR}.x)")
     v.match(pack["pack_id"], PACK_ID, "pack.pack_id")
+    if isinstance(pack.get("extraction"), dict):
+        _validate_extraction(v, pack["extraction"])
     v.match(pack["created_at"], TIMESTAMP, "pack.created_at")
     v.obj(pack["generator"], "pack.generator", {"name": str, "version": str})
     if v.obj(pack["project"], "pack.project", {"name": str, "root_label": str, "vcs": dict}):

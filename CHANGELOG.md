@@ -7,7 +7,39 @@ the command line or the pack format; such changes are listed under **Changed**.
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-11-08
+## [0.3.0] - 2026-11-08
+
+Smart extraction.
+
+### Added
+
+- Text under headings that no rule recognises, and text before the first heading, is no longer
+  dropped. A statement whose wording says what it is goes to that section and is marked
+  `(inferred)`: decisions ("we decided", "wir haben entschieden"), goals ("the goal is", "das Ziel
+  ist"), next steps, tasks ("TODO", "wir müssen noch") and questions. Everything else becomes an
+  unclassified note, in a new section at the end of the context tier.
+- Paragraphs of short lines count as one statement per line; wrapped prose is split into sentences,
+  except after abbreviations such as "z. B." and "e.g." and after ordinal numbers.
+- Boilerplate sections (licence, credits, table of contents) are skipped; badge rows and rules are
+  not text.
+- An extraction report in every pack: for each Markdown file and heading, where its items went and
+  how many were kept, merged into a duplicate, shortened or left out, and which sections were
+  skipped. `pack` prints a one-line summary; `pack --sections` prints the report, and
+  `pack --dry-run --sections` previews it without writing anything.
+- The Context Quality Score measures source coverage: the share of the readable lines of the
+  Markdown sources that end up in an item, and in the pack. A new reference case of unstructured
+  German and English notes scores 100 (with 0.2.0: 9.1).
+
+### Changed
+
+- Schema 1.1: section `unclassified`, flag `inferred` and the optional `extraction` report. Packs
+  of schema 1.0 still verify; packs written by 0.3 need Context Bridge 0.3 to verify.
+- The coverage statement of a pack that keeps every item says that files outside the allowlist,
+  code and boilerplate sections are not extracted (packs of schema 1.0 keep their wording).
+- More extracted text can leave less room: a pack that was complete at its budget may now report
+  PARTIAL coverage, because unclassified notes do not all fit. They are the first to be left out.
+- The SessionStart digest marks inferred items and leaves unclassified notes out.
+
 
 Windows and WSL 2.
 
@@ -102,6 +134,7 @@ First public release.
 - Approvals are stored outside the project, so a repository cannot ship its own approval.
 - git runs read-only, and it is skipped when a repository's configuration could start programs.
 
-[Unreleased]: https://github.com/ventuneo/context-bridge/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ventuneo/context-bridge/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ventuneo/context-bridge/releases/tag/v0.1.0

@@ -40,6 +40,11 @@ project that move.
   critical items (goals, constraints, decisions, next steps), then important ones (state, open
   questions, tasks, commands), then context. Dropping a critical item is reported as **critical
   information loss**.
+- **Smart extraction** keeps text under headings that no rule recognises. A statement whose wording
+  says what it is ("we decided", "TODO", "das Ziel ist", a question) goes to that section, marked
+  `(inferred)`; everything else becomes an unclassified note instead of being dropped. Boilerplate
+  such as a licence is skipped. `pack --dry-run --sections` shows for every heading what was kept,
+  merged, shortened or left out.
 - **`verify`** checks the structure, the integrity (hashes, re-rendering), the provenance (every item
   from an unchanged file must be re-derivable), the safety (secrets, hidden characters, injection)
   and the freshness (changed files, new commits, age).
@@ -66,17 +71,17 @@ Context Bridge is installed from this repository. It is not distributed through 
 marketplace.
 
 ```sh
-git clone --branch v0.2.0 --depth 1 https://github.com/ventuneo/context-bridge.git ~/.local/share/context-bridge
+git clone --branch v0.3.0 --depth 1 https://github.com/ventuneo/context-bridge.git ~/.local/share/context-bridge
 mkdir -p ~/.claude/skills
 ln -s ~/.local/share/context-bridge/skills/context-bridge ~/.claude/skills/context-bridge
-python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version   # context-bridge 0.2.0
+python3 -I ~/.claude/skills/context-bridge/scripts/cb.py --version   # context-bridge 0.3.0
 ```
 
 On Windows, in PowerShell (a directory junction instead of a symbolic link, so no administrator
 rights are needed):
 
 ```powershell
-git clone --branch v0.2.0 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:LOCALAPPDATA\Programs\context-bridge"
+git clone --branch v0.3.0 --depth 1 https://github.com/ventuneo/context-bridge.git "$env:LOCALAPPDATA\Programs\context-bridge"
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills" | Out-Null
 New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\context-bridge" -Target "$env:LOCALAPPDATA\Programs\context-bridge\skills\context-bridge"
 python -I "$env:USERPROFILE\.claude\skills\context-bridge\scripts\cb.py" --version   # or: py -3 -I ...
@@ -122,11 +127,12 @@ Findings: 0 secrets, 0 personal data, 0 injection patterns. Values are never sho
 $ cb pack --root . --approve --handoff-json '{"goal": {"text": "Ship reminders before the summer holidays.", "status": "fact"}, ...}'
 Context pack written: .context-bridge/packs/20261108T013155Z-d22e74.md (JSON: .context-bridge/packs/20261108T013155Z-d22e74.json)
 Latest: .context-bridge/latest.md
-~1239 of 2000 tokens · kept 20 items (critical 11, important 4, context 5) · left out 0 · duplicates merged 0
+~1323 of 2000 tokens · kept 21 items (critical 11, important 4, context 6) · left out 0 · duplicates merged 0
+Smart extraction: 0 item(s) sorted by their wording and 1 unclassified note(s) from 1 section(s) without a recognised heading (details: --sections)
 
 $ cb verify --root .
 Result: OK (integrity, safety and freshness checks passed)
-Coverage: All 20 extracted items are included. Extraction is selective: text outside recognised sections is not in the pack, so the pack is not a full copy of the project.
+Coverage: All 21 extracted items are included. Extraction is selective: files outside the allowlist, code and boilerplate sections are not extracted, so the pack is not a full copy of the project.
 Source files: 4 fresh
 Repository: unchanged since the pack
 ```
@@ -154,7 +160,7 @@ Since this pack: 1 new commit(s) · 1 changed and 0 missing source file(s) · 1 
 ## Changes since this pack
 
 - Repository: 1 new commit(s) since the pack:
-  - 4b6fcc8: Plan the CSV import
+  - 4c4ddd1: Plan the CSV import
 - Changed: S1 README.md; outdated items: I11
 ```
 
@@ -203,7 +209,8 @@ backup exactly. See [docs/setup.md](docs/setup.md).
         │
  scan   │ allowlist and deny roots · confined reads · redaction · injection checks
         ▼
- pack   │ extractors → items (source, lines, status) → duplicates merged → token budget
+ pack   │ extractors → items (source, lines, status; unrecognised headings: by wording or as notes)
+        │   → duplicates merged → token budget
         ▼                                     → .context-bridge/latest.json + latest.md
  verify │ schema · hashes · re-rendering · provenance · safety re-scan · freshness
         ▼
@@ -244,10 +251,13 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md). The threat model is i
 
 ## Quality
 
-- **Context Quality Score:** five synthetic reference projects with known ground truth measure
+- **Context Quality Score:** six synthetic reference projects with known ground truth measure
   what survives compression at budgets from 500 to 4000 tokens. In the default mode every critical
   item survives at every budget. At the reference budgets the score is 100 for the small projects
   (2000 tokens) and 97.1 for the large one (4000 tokens).
+- **Source coverage:** the share of the readable lines of the Markdown sources that end up in
+  items. Smart extraction raised it from 40 % to 100 % for the large project, and from 5 % to 95 %
+  for unstructured meeting notes, whose score went from 9.1 to 100.
 - **Token counts:** they use an estimate calibrated against real Claude token counts. In
   leave-one-out validation it is off by 4.3 % on average and by at most 10.2 %.
 
@@ -255,8 +265,8 @@ See [docs/quality.md](docs/quality.md).
 
 ## Limitations
 
-- Extraction is selective and lexical. Text under headings it does not recognise is not packed,
-  and it is not reported as lost either.
+- Extraction is selective and lexical. Text under unrecognised headings is sorted by its wording
+  or kept as an unclassified note; that sorting is a heuristic for English and German.
 - Handoff entries from the conversation cannot be checked against files.
 - Token counts are estimates, calibrated for Claude's tokenizer on English and German text.
 - Windows is tested in CI, but not yet with Claude Code itself. The skill and the hook were tested

@@ -95,7 +95,8 @@ def _line(item: dict[str, Any], sources: dict[str, dict[str, Any]]) -> str:
         text = f'⚠ instruction-like text, shown as data: "{text}"'
     label = "" if item["status"] == "fact" else f"[{item['status']}] "
     origin = " (unverified)" if sources.get(item["source"], {}).get("origin") == "session" else ""
-    return f"- {label}{text}{origin}"
+    inferred = " (inferred)" if "inferred" in item["flags"] else ""
+    return f"- {label}{text}{origin}{inferred}"
 
 
 def _already_in_context(source: dict[str, Any]) -> bool:

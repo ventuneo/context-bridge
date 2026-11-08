@@ -197,11 +197,19 @@ COVERAGE_CRITICAL = "critical_loss"
 COVERAGE_STATUSES = (COVERAGE_ALL, COVERAGE_PARTIAL, COVERAGE_CRITICAL)
 
 
-def coverage_of(retention: dict[str, dict[str, int]], kept_items: int, truncated_kept: int, critical_loss: int) -> dict:
+# The wording belongs to the pack format: verify compares it exactly, so packs of schema 1.0 keep theirs.
+ALL_KEPT_SELECTIVE = {
+    "1.0": "text outside recognised sections is not in the pack",
+    "1.1": "files outside the allowlist, code and boilerplate sections are not extracted",
+}
+
+
+def coverage_of(retention: dict[str, dict[str, int]], kept_items: int, truncated_kept: int, critical_loss: int,
+                schema_version: str = "1.1") -> dict:  # fmt: skip
     """The pack's declared coverage, derived only from counts so ``verify`` can recompute it.
 
     A pack is never called complete or lossless: even when every extracted item is kept,
-    extraction itself is selective (text outside recognised sections is not packed).
+    extraction itself is selective (files outside the allowlist, code, boilerplate).
     """
     dropped = {CRITICAL: 0, IMPORTANT: 0, CONTEXT: 0}
     extracted = 0
@@ -224,9 +232,10 @@ def coverage_of(retention: dict[str, dict[str, int]], kept_items: int, truncated
         )
     else:
         status = COVERAGE_ALL
+        selective = ALL_KEPT_SELECTIVE.get(schema_version, ALL_KEPT_SELECTIVE["1.1"])
         statement = (
-            f"All {kept_items} extracted items are included. Extraction is selective: text outside "
-            "recognised sections is not in the pack, so the pack is not a full copy of the project."
+            f"All {kept_items} extracted items are included. Extraction is selective: {selective}, "
+            "so the pack is not a full copy of the project."
         )
     return {
         "status": status,

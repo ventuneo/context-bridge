@@ -7,8 +7,8 @@ problems matter. Thank you for reporting them responsibly.
 
 | Version | Supported |
 |---|---|
-| 0.2.x | yes |
-| 0.1.x and older | no, please update |
+| 0.3.x | yes |
+| 0.2.x and older | no, please update |
 
 ## Reporting a vulnerability
 

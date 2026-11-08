@@ -16,9 +16,11 @@ entry and further integrations come after the MVP.
 | M7.1 Auto-resume | Optional SessionStart hook that loads a verified digest; calibrated token estimate; git freshness that separates repository progress from source changes | Digest within its token limit in real sessions |
 | M8 Release preparation | README and docs for users and contributors, community files, CI on Linux and macOS with Python 3.11–3.15, fresh-install smoke test | Fresh install works in an isolated home folder |
 | M9 Windows and WSL 2 | Platform layer (home and data folders, unsafe Windows names, junctions, path keys, retries, UTF-8 output), Windows install with a directory junction, exec-form hook, PowerShell forms in the skill, CI on Windows | CI green on Linux, macOS and Windows; fresh install works on Windows |
+| M10 Smart extraction | Text under unrecognised headings sorted by its wording or kept as unclassified notes, statement splitting, skipped boilerplate, extraction report, source coverage in the Context Quality Score | No silent loss of text under free headings; the unstructured `notes` case scores ≥ 90 |
 
-Status: M0–M9 done: version 0.1.0 and version 0.2.0 (Windows and WSL 2). CI tests every change on
-Linux, macOS and Windows with Python 3.11–3.15. Claude Code itself on Windows is not tested yet.
+Status: M0–M10 done: version 0.1.0, version 0.2.0 (Windows and WSL 2) and version 0.3.0 (smart
+extraction). CI tests every change on Linux, macOS and Windows with Python 3.11–3.15. Claude Code
+itself on Windows is not tested yet.
 
 ## Planned after the MVP
 
@@ -26,6 +28,16 @@ Linux, macOS and Windows with Python 3.11–3.15. Claude Code itself on Windows 
   project, symlinks resolved), offer a global or project integration, show a preview and apply
   it only with a separate confirmation tied to that preview, avoid duplicate entries (marked
   block, idempotent) and allow undo from a backup. Done in M7.
+
+## Later improvements to smart extraction
+
+Left out of M10 on purpose, to keep it small:
+
+- Checklist templates and milestone tables are read as open tasks, because their headings are
+  recognised; a release checklist then looks like open release work.
+- Cue phrases exist for English and German only, and a project cannot add its own phrases or
+  skipped headings.
+- Source coverage is measured for Markdown only; manifests and changelogs are read field by field.
 
 ## Compression priority
 

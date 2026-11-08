@@ -4,210 +4,300 @@
     "500-soft": {
       "score": 71.2,
       "critical_found": 14,
-      "critical_total": 14
+      "critical_total": 14,
+      "source_coverage": 0.962
     },
     "500-hard": {
       "score": 0.0,
       "critical_found": 0,
-      "critical_total": 14
+      "critical_total": 14,
+      "source_coverage": 0.962
     },
     "1000-soft": {
       "score": 71.2,
       "critical_found": 14,
-      "critical_total": 14
+      "critical_total": 14,
+      "source_coverage": 0.962
     },
     "1000-hard": {
       "score": 20.3,
       "critical_found": 4,
-      "critical_total": 14
+      "critical_total": 14,
+      "source_coverage": 0.962
     },
     "2000-soft": {
       "score": 100.0,
       "critical_found": 14,
-      "critical_total": 14
+      "critical_total": 14,
+      "source_coverage": 0.962
     },
     "2000-hard": {
       "score": 100.0,
       "critical_found": 14,
-      "critical_total": 14
+      "critical_total": 14,
+      "source_coverage": 0.962
     },
     "4000-soft": {
       "score": 100.0,
       "critical_found": 14,
-      "critical_total": 14
+      "critical_total": 14,
+      "source_coverage": 0.962
     },
     "4000-hard": {
       "score": 100.0,
       "critical_found": 14,
-      "critical_total": 14
+      "critical_total": 14,
+      "source_coverage": 0.962
     }
   },
   "conflicts": {
     "500-soft": {
       "score": 58.8,
       "critical_found": 6,
-      "critical_total": 6
+      "critical_total": 6,
+      "source_coverage": 1.0
     },
     "500-hard": {
       "score": 0.0,
       "critical_found": 0,
-      "critical_total": 6
+      "critical_total": 6,
+      "source_coverage": 1.0
     },
     "1000-soft": {
       "score": 85.3,
       "critical_found": 6,
-      "critical_total": 6
+      "critical_total": 6,
+      "source_coverage": 1.0
     },
     "1000-hard": {
       "score": 85.3,
       "critical_found": 6,
-      "critical_total": 6
+      "critical_total": 6,
+      "source_coverage": 1.0
     },
     "2000-soft": {
       "score": 100.0,
       "critical_found": 6,
-      "critical_total": 6
+      "critical_total": 6,
+      "source_coverage": 1.0
     },
     "2000-hard": {
       "score": 100.0,
       "critical_found": 6,
-      "critical_total": 6
+      "critical_total": 6,
+      "source_coverage": 1.0
     },
     "4000-soft": {
       "score": 100.0,
       "critical_found": 6,
-      "critical_total": 6
+      "critical_total": 6,
+      "source_coverage": 1.0
     },
     "4000-hard": {
       "score": 100.0,
       "critical_found": 6,
-      "critical_total": 6
+      "critical_total": 6,
+      "source_coverage": 1.0
     }
   },
   "german": {
     "500-soft": {
       "score": 75.0,
       "critical_found": 15,
-      "critical_total": 15
+      "critical_total": 15,
+      "source_coverage": 1.0
     },
     "500-hard": {
       "score": 0.0,
       "critical_found": 0,
-      "critical_total": 15
+      "critical_total": 15,
+      "source_coverage": 1.0
     },
     "1000-soft": {
       "score": 75.0,
       "critical_found": 15,
-      "critical_total": 15
+      "critical_total": 15,
+      "source_coverage": 1.0
     },
     "1000-hard": {
       "score": 25.0,
       "critical_found": 5,
-      "critical_total": 15
+      "critical_total": 15,
+      "source_coverage": 1.0
     },
     "2000-soft": {
       "score": 100.0,
       "critical_found": 15,
-      "critical_total": 15
+      "critical_total": 15,
+      "source_coverage": 1.0
     },
     "2000-hard": {
       "score": 100.0,
       "critical_found": 15,
-      "critical_total": 15
+      "critical_total": 15,
+      "source_coverage": 1.0
     },
     "4000-soft": {
       "score": 100.0,
       "critical_found": 15,
-      "critical_total": 15
+      "critical_total": 15,
+      "source_coverage": 1.0
     },
     "4000-hard": {
       "score": 100.0,
       "critical_found": 15,
-      "critical_total": 15
+      "critical_total": 15,
+      "source_coverage": 1.0
     }
   },
   "injection": {
     "500-soft": {
       "score": 91.2,
       "critical_found": 9,
-      "critical_total": 9
+      "critical_total": 9,
+      "source_coverage": 1.0
     },
     "500-hard": {
       "score": 0.0,
       "critical_found": 0,
-      "critical_total": 9
+      "critical_total": 9,
+      "source_coverage": 1.0
     },
     "1000-soft": {
       "score": 91.2,
       "critical_found": 9,
-      "critical_total": 9
+      "critical_total": 9,
+      "source_coverage": 1.0
     },
     "1000-hard": {
       "score": 47.1,
       "critical_found": 5,
-      "critical_total": 9
+      "critical_total": 9,
+      "source_coverage": 1.0
     },
     "2000-soft": {
       "score": 100.0,
       "critical_found": 9,
-      "critical_total": 9
+      "critical_total": 9,
+      "source_coverage": 1.0
     },
     "2000-hard": {
       "score": 100.0,
       "critical_found": 9,
-      "critical_total": 9
+      "critical_total": 9,
+      "source_coverage": 1.0
     },
     "4000-soft": {
       "score": 100.0,
       "critical_found": 9,
-      "critical_total": 9
+      "critical_total": 9,
+      "source_coverage": 1.0
     },
     "4000-hard": {
       "score": 100.0,
       "critical_found": 9,
-      "critical_total": 9
+      "critical_total": 9,
+      "source_coverage": 1.0
     }
   },
   "large": {
     "500-soft": {
       "score": 81.3,
       "critical_found": 37,
-      "critical_total": 37
+      "critical_total": 37,
+      "source_coverage": 0.997
     },
     "500-hard": {
       "score": 0.0,
       "critical_found": 0,
-      "critical_total": 37
+      "critical_total": 37,
+      "source_coverage": 0.997
     },
     "1000-soft": {
       "score": 81.3,
       "critical_found": 37,
-      "critical_total": 37
+      "critical_total": 37,
+      "source_coverage": 0.997
     },
     "1000-hard": {
       "score": 12.9,
       "critical_found": 6,
-      "critical_total": 37
+      "critical_total": 37,
+      "source_coverage": 0.997
     },
     "2000-soft": {
       "score": 81.3,
       "critical_found": 37,
-      "critical_total": 37
+      "critical_total": 37,
+      "source_coverage": 0.997
     },
     "2000-hard": {
       "score": 49.6,
       "critical_found": 23,
-      "critical_total": 37
+      "critical_total": 37,
+      "source_coverage": 0.997
     },
     "4000-soft": {
       "score": 97.1,
       "critical_found": 37,
-      "critical_total": 37
+      "critical_total": 37,
+      "source_coverage": 0.997
     },
     "4000-hard": {
       "score": 97.1,
       "critical_found": 37,
-      "critical_total": 37
+      "critical_total": 37,
+      "source_coverage": 0.997
+    }
+  },
+  "notes": {
+    "500-soft": {
+      "score": 63.6,
+      "critical_found": 7,
+      "critical_total": 7,
+      "source_coverage": 0.95
+    },
+    "500-hard": {
+      "score": 0.0,
+      "critical_found": 0,
+      "critical_total": 7,
+      "source_coverage": 0.95
+    },
+    "1000-soft": {
+      "score": 84.8,
+      "critical_found": 7,
+      "critical_total": 7,
+      "source_coverage": 0.95
+    },
+    "1000-hard": {
+      "score": 84.8,
+      "critical_found": 7,
+      "critical_total": 7,
+      "source_coverage": 0.95
+    },
+    "2000-soft": {
+      "score": 100.0,
+      "critical_found": 7,
+      "critical_total": 7,
+      "source_coverage": 0.95
+    },
+    "2000-hard": {
+      "score": 100.0,
+      "critical_found": 7,
+      "critical_total": 7,
+      "source_coverage": 0.95
+    },
+    "4000-soft": {
+      "score": 100.0,
+      "critical_found": 7,
+      "critical_total": 7,
+      "source_coverage": 0.95
+    },
+    "4000-hard": {
+      "score": 100.0,
+      "critical_found": 7,
+      "critical_total": 7,
+      "source_coverage": 0.95
     }
   }
 }

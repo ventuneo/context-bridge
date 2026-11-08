@@ -28,6 +28,9 @@ Every number is counted, not estimated:
 * forbidden hits, pack tokens, tokens read from the sources, compression ratio,
   points per 1000 pack tokens
 * whether a critical loss was reported by ``pack`` (exit 3) and by ``verify``
+* source coverage: the share of the lines a reader reads in the Markdown sources (not
+  headings, code, table rules or hidden text) that lie inside an extracted item, and the
+  share inside an item that the pack kept
 
 Packs are written into temporary copies with an isolated configuration and consent
 store, then verified; nothing outside the temporary directory is touched.
@@ -55,12 +58,20 @@ from context_bridge import scan as scan_mod  # noqa: E402
 from context_bridge import tokens  # noqa: E402
 from context_bridge import verify as verify_mod  # noqa: E402
 from context_bridge.budget import normalise  # noqa: E402
+from context_bridge.extract import markdown as markdown_mod  # noqa: E402
 
 WEIGHTS = {"critical": 3, "important": 2, "normal": 1}
 CATEGORIES = ("goal", "constraint", "decision", "next_step", "fact", "assumption", "open_question")
 BUDGETS = (500, 1000, 2000, 4000)
-DEFAULT_GATES: dict[str, Any] = {"reference_budget": 2000, "min_score": 90.0, "max_compression": None}
+DEFAULT_GATES: dict[str, Any] = {
+    "reference_budget": 2000,
+    "min_score": 90.0,
+    "max_compression": None,
+    "min_source_coverage": None,
+}
 REGRESSION_TOLERANCE = 5.0
+COVERAGE_TOLERANCE = 0.02  # source coverage may not fall by more than two percentage points
+MARKDOWN_KINDS = ("readme", "agent_rules", "decisions", "docs", "custom")  # manifests and changelogs are excluded
 _WORDS = (
     "orchard",
     "crate",
@@ -272,6 +283,32 @@ def evaluate(pack: dict[str, Any], markdown: str, expected: dict[str, Any]) -> d
     }
 
 
+def source_coverage(root: Path, pack: dict[str, Any]) -> dict[str, Any]:
+    """How much of what a reader reads in the Markdown sources lies inside items: extracted at all,
+    and kept in the pack. A kept duplicate counts for the file whose copy was kept."""
+    report = scan_mod.scan(root, keep_text=True)
+    label_of = {s["id"]: s["label"] for s in pack["sources"]}
+    kept_lines: dict[str, set[int]] = {}
+    for section in pack["sections"]:
+        for item in section["items"]:
+            if item.get("lines") and item["source"] in label_of:
+                start, end = item["lines"]
+                kept_lines.setdefault(label_of[item["source"]], set()).update(range(start, end + 1))
+    total = extracted = kept = 0
+    for f in report.included:
+        if f.kind not in MARKDOWN_KINDS:
+            continue
+        text = report.texts.get(f.path, "")
+        lines = markdown_mod.content_lines(text)
+        items, _ = pack_mod.extract_source(f.path, f.kind, text, "S0")
+        covered = {n for i in items if i.lines for n in range(i.lines[0], i.lines[1] + 1)}
+        total += len(lines)
+        extracted += len(lines & covered)
+        kept += len(lines & kept_lines.get(f.path, set()))
+    share = lambda n: round(n / total, 3) if total else None  # noqa: E731
+    return {"content_lines": total, "source_coverage": share(extracted), "pack_source_coverage": share(kept)}
+
+
 def run_case(case_dir: Path, budget: int, hard_budget: bool = False) -> dict[str, Any]:
     expected, handoff = load_case(case_dir)
     with tempfile.TemporaryDirectory(prefix="cb-quality-") as tmp, isolated_runtime(Path(tmp)):
@@ -280,6 +317,7 @@ def run_case(case_dir: Path, budget: int, hard_budget: bool = False) -> dict[str
         result = pack_mod.build(root, handoff=handoff, approve=True, budget=budget, hard_budget=hard_budget)
         report = verify_mod.verify(root)
         metrics = evaluate(result.pack, result.markdown, expected)
+        metrics.update(source_coverage(root, result.pack))
         metrics.update(
             case=case_dir.name,
             budget=budget,
@@ -331,6 +369,8 @@ def check_gates(results: list[dict[str, Any]]) -> list[str]:
         for key in ("status_accuracy", "provenance_accuracy", "flags_accuracy"):
             if ref[key] is not None and ref[key] < 1.0:
                 failures.append(f"{case}: {key} {ref[key]} at the reference budget (mismatches: {ref['mismatches']})")
+        if g["min_source_coverage"] is not None and (ref["source_coverage"] or 0) < g["min_source_coverage"]:
+            failures.append(f"{case}: source coverage {ref['source_coverage']} is below {g['min_source_coverage']}")
         if g["max_compression"] is not None and ref["compression"] > g["max_compression"]:
             failures.append(f"{case}: compression {ref['compression']} exceeds {g['max_compression']}")
         for mode in ("soft", "hard"):
@@ -360,6 +400,8 @@ def compare_baseline(results: list[dict[str, Any]], baseline: dict[str, Any]) ->
             failures.append(f"{run}: CQS fell from {old['score']} to {r['score']} (tolerance {REGRESSION_TOLERANCE})")
         if r["critical_found"] < old["critical_found"]:
             failures.append(f"{run}: critical items fell from {old['critical_found']} to {r['critical_found']}")
+        if "source_coverage" in old and (r["source_coverage"] or 0) < old["source_coverage"] - COVERAGE_TOLERANCE:
+            failures.append(f"{run}: source coverage fell from {old['source_coverage']} to {r['source_coverage']}")
     return failures
 
 
@@ -370,6 +412,7 @@ def baseline_from(results: list[dict[str, Any]]) -> dict[str, Any]:
             "score": r["score"],
             "critical_found": r["critical_found"],
             "critical_total": r["critical_total"],
+            "source_coverage": r["source_coverage"],
         }
     return data
 

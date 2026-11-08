@@ -32,7 +32,7 @@ def table(results: list[dict]) -> str:
     head = (
         f"{'case':<10} {'budget':>6} {'mode':<4} {'CQS':>5} {'points':>7} {'crit':>6} {'goal':>5} {'constr':>6} "
         f"{'decis':>5} {'next':>5} {'status':>6} {'origin':>6} {'tokens':>6} {'read':>6} {'ratio':>6} "
-        f"{'pts/1k':>6} {'exit':>4}  critical loss"
+        f"{'pts/1k':>6} {'src':>4} {'kept':>4} {'exit':>4}  critical loss"
     )
     lines = [head, "-" * len(head)]
     for r in results:
@@ -46,7 +46,8 @@ def table(results: list[dict]) -> str:
             f"{_ratio(cat.get('constraint')):>6} "
             f"{_ratio(cat.get('decision')):>5} {_ratio(cat.get('next_step')):>5} {pct(r['status_accuracy']):>6} "
             f"{pct(r['provenance_accuracy']):>6} {r['tokens']:>6} {r['source_tokens']:>6} {r['compression']:>6} "
-            f"{r['points_per_1k_tokens']:>6} {r['pack_exit']}/{r['verify_exit']}  {loss}"
+            f"{r['points_per_1k_tokens']:>6} {pct(r['source_coverage']):>4} {pct(r['pack_source_coverage']):>4} "
+            f"{r['pack_exit']}/{r['verify_exit']}  {loss}"
         )
     return "\n".join(lines)
 
