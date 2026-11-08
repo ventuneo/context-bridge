@@ -18,9 +18,9 @@ entry and further integrations come after the MVP.
 | M9 Windows and WSL 2 | Platform layer (home and data folders, unsafe Windows names, junctions, path keys, retries, UTF-8 output), Windows install with a directory junction, exec-form hook, PowerShell forms in the skill, CI on Windows | CI green on Linux, macOS and Windows; fresh install works on Windows |
 | M10 Smart extraction | Text under unrecognised headings sorted by its wording or kept as unclassified notes, statement splitting, skipped boilerplate, extraction report, source coverage in the Context Quality Score | No silent loss of text under free headings; the unstructured `notes` case scores ≥ 90 |
 
-Status: M0–M9 done: version 0.1.0 and version 0.2.0 (Windows and WSL 2). M10 (version 0.3.0, smart
-extraction) is implemented and not released yet. CI tests every change on Linux, macOS and Windows
-with Python 3.11–3.15. Claude Code itself on Windows is not tested yet.
+Status: M0–M10 done: version 0.1.0, version 0.2.0 (Windows and WSL 2) and version 0.3.0 (smart
+extraction). CI tests every change on Linux, macOS and Windows with Python 3.11–3.15. Claude Code
+itself on Windows is not tested yet.
 
 ## Planned after the MVP
 
