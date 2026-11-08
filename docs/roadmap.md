@@ -29,6 +29,16 @@ with Python 3.11–3.15. Claude Code itself on Windows is not tested yet.
   it only with a separate confirmation tied to that preview, avoid duplicate entries (marked
   block, idempotent) and allow undo from a backup. Done in M7.
 
+## Later improvements to smart extraction
+
+Left out of M10 on purpose, to keep it small:
+
+- Checklist templates and milestone tables are read as open tasks, because their headings are
+  recognised; a release checklist then looks like open release work.
+- Cue phrases exist for English and German only, and a project cannot add its own phrases or
+  skipped headings.
+- Source coverage is measured for Markdown only; manifests and changelogs are read field by field.
+
 ## Compression priority
 
 1. **Critical** – never dropped silently: goals, constraints, decisions, next steps
