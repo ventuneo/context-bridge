@@ -299,7 +299,9 @@ class InstalledHookTests(unittest.TestCase):
         self.assertEqual(hook.returncode, 0)
         self.assertIn("Test the export job. (unverified)", hook.stdout)
         self.assertLessEqual(upper_bound(hook.stdout), 400)
-        self.assertLess(elapsed, 3.0)  # a fresh process including verify; measured around 0.2 s
+        # A fresh process including verify, measured around 0.2 s. Windows starts processes more slowly
+        # (and virus scanners look at new files); the hook's timeout is 10 s.
+        self.assertLess(elapsed, 8.0 if os.name == "nt" else 3.0)
         self.assertIn("context pack verified", self.run_hook("resume").stdout)
         self.assertEqual(self.run_hook("compact").stdout, "")
 
