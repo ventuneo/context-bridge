@@ -7,6 +7,35 @@ the command line or the pack format; such changes are listed under **Changed**.
 
 ## [Unreleased]
 
+### Security
+
+- A pack that came with the project is no longer loaded as verified. Until now, a pack committed
+  past the store's own `.gitignore` (`git add -f`) and cloned elsewhere passed `verify`, so the
+  SessionStart hook and `resume` presented a repository's own, freely written pack as
+  "verified". `pack` now records the SHA-256 of every pack it writes outside the project, next to
+  the approvals, and `verify` refuses any pack that is not in that record with the new error
+  `pack_not_local`: packs from a clone, a copied or moved folder, edited packs and packs written
+  before this version. The hook loads nothing from such a pack and prints one line instead.
+  Reported privately by a community member.
+- Approving sources can no longer happen without a prompt. The skill pre-approves `pack` for
+  Claude Code, and with it `pack --approve`, so the rule "never approve on your own initiative"
+  was only an instruction to the model. Approving is now the separate command `approve`, which the
+  skill does not pre-approve: Claude Code asks the user before every approval.
+
+### Changed
+
+- **`pack --approve` and `pack --approve-path` are removed.** Use `approve --root .` to approve all
+  current sources, or `approve --root . --path <source>` for one. The old options fail with exit
+  code 64 and approve nothing.
+- **Packs written before this version are refused** (`pack_not_local`) until you pack again once.
+- Packs stay with their folder and machine; the README no longer says they work across machines.
+  To continue on another machine, approve and pack there.
+
+### Fixed
+
+- The skill said the hook loads nothing from a pack that fails verification; it prints one line
+  that says so, as the README and `docs/setup.md` describe.
+
 ## [0.3.1] - 2026-11-08
 
 ### Fixed

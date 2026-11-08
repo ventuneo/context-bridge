@@ -9,7 +9,7 @@ Roadmap: `docs/roadmap.md`.
 |---|---|
 | `skills/context-bridge/SKILL.md` | The Claude Code skill: workflows for scan, pack, verify, resume and the safety rules; `references/` holds handoff, format and security notes |
 | `skills/context-bridge/scripts/cb.py` | Entry point, always run as `python3 -I cb.py …` |
-| `skills/context-bridge/scripts/context_bridge/` | Package: safety core, `scan`, `pack` (model, extract/, budget, consent, store, render), `verify` (schema), `resume` |
+| `skills/context-bridge/scripts/context_bridge/` | Package: safety core, `scan`, `approve` (consent), `pack` (model, extract/, budget, store, origin, render), `verify` (schema), `resume` |
 | `schema/` | Published JSON Schema of the pack format (cross-checked by `tools/check_schema.py` in CI) |
 | `quality/` | Context Quality Score: synthetic reference cases with ground truth, `evaluate.py`, `run.py`, `baseline.json` (see `docs/quality.md`) |
 | `tests/` | `unittest` suite; `helpers.py` isolates HOME and guards the real home directory |
@@ -23,7 +23,8 @@ Roadmap: `docs/roadmap.md`.
 ```sh
 python3 -m unittest discover -s tests
 python3 -I skills/context-bridge/scripts/cb.py scan --root <dir> [--json]
-python3 -I skills/context-bridge/scripts/cb.py pack --root <dir> [--approve] [--handoff -] [--dry-run] [--sections]
+python3 -I skills/context-bridge/scripts/cb.py approve --root <dir> [--path SOURCE]   # never in allowed-tools
+python3 -I skills/context-bridge/scripts/cb.py pack --root <dir> [--handoff -] [--dry-run] [--sections]
 python3 -I skills/context-bridge/scripts/cb.py verify|resume --root <dir> [--pack ID] [--json]
 python3 -I skills/context-bridge/scripts/cb.py setup [status|preview|apply|undo-preview|undo] --target <scope> [--hook]
 python3 -I quality/run.py [--check] [--details]      # Context Quality Score; --check = gates + baseline

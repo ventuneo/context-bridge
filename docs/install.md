@@ -214,7 +214,7 @@ a file that no longer exists.
 
    | macOS, Linux, WSL | Windows | Contains |
    |---|---|---|
-   | `~/.local/state/context-bridge/` (or `$XDG_STATE_HOME/context-bridge/`) | `%LOCALAPPDATA%\context-bridge\` | approvals of sources and the backups made by `setup`. Remove it only after step 1. |
+   | `~/.local/state/context-bridge/` (or `$XDG_STATE_HOME/context-bridge/`) | `%LOCALAPPDATA%\context-bridge\` | approvals of sources, the record of the packs written here and the backups made by `setup`. Remove it only after step 1. |
    | `~/.config/context-bridge/config.toml` | `%APPDATA%\context-bridge\config.toml` | your settings, such as deny roots and hook options |
    | `<project>/.context-bridge/` | the same | the packs of that project; the folder is ignored by git |
 

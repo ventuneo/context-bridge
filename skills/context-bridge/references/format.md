@@ -14,7 +14,10 @@
 ```
 
 Approvals live outside the project in `$XDG_STATE_HOME/context-bridge/consent/`, so a
-repository cannot ship its own approval.
+repository cannot ship its own approval. Next to them, `$XDG_STATE_HOME/context-bridge/packs/`
+records the SHA-256 of every pack that `pack` wrote for a folder; `verify` accepts only those
+(finding `pack_not_local` otherwise), so a repository cannot ship its own pack either. Both are
+keyed by the project's real path: a moved or copied project is approved and packed again.
 
 ## Sections and tiers
 

@@ -20,7 +20,7 @@ anything.
 
 ## Why
 
-- **Conversations end, projects continue.** A pack keeps what matters across sessions, machines and
+- **Conversations end, projects continue.** A pack keeps what matters across sessions and
   assistants: what was decided, what comes next and what is still open.
 - **Every line can be checked.** Items come from a named file and line range. Items that come from
   the conversation are marked `(unverified)`.
@@ -94,14 +94,14 @@ for a single project, verifying what you installed, updating and uninstalling.
 
 | You say | Context Bridge |
 |---|---|
-| "Save the context" | runs `scan`, asks you to approve the sources (the first time), writes the handoff, runs `pack` and `verify`, and reports the coverage |
+| "Save the context" | runs `scan`, asks you to approve the sources (the first time; `approve` asks once more before it runs), writes the handoff, runs `pack` and `verify`, and reports the coverage |
 | "Where were we?" | summarises the state and what changed, from `resume` or from the digest the optional hook loaded, and suggests the next step |
 | "Is the saved context still accurate?" | runs `verify` |
 | `/context-bridge setup` | lists your CLAUDE.md files and offers the integration, with a preview |
 
 The skill recognises German requests too ("Kontext sichern", "wo waren wir"). It only runs
-`python3 -I …/cb.py` commands (on Windows `python -I` or `py -3 -I`), and `setup apply` and
-`setup undo` always ask for your confirmation.
+`python3 -I …/cb.py` commands (on Windows `python -I` or `py -3 -I`), and `approve`, `setup apply`
+and `setup undo` always ask for your confirmation.
 
 ## Demo
 
@@ -124,7 +124,11 @@ Excluded: 1 entries
 
 Findings: 0 secrets, 0 personal data, 0 injection patterns. Values are never shown; pack will redact them.
 
-$ cb pack --root . --approve --handoff-json '{"goal": {"text": "Ship reminders before the summer holidays.", "status": "fact"}, ...}'
+$ cb approve --root .
+Context Bridge approve: 6 source(s) newly approved, 0 already approved.
+...
+
+$ cb pack --root . --handoff-json '{"goal": {"text": "Ship reminders before the summer holidays.", "status": "fact"}, ...}'
 Context pack written: .context-bridge/packs/20261108T013155Z-d22e74.md (JSON: .context-bridge/packs/20261108T013155Z-d22e74.json)
 Latest: .context-bridge/latest.md
 ~1323 of 2000 tokens · kept 21 items (critical 11, important 4, context 6) · left out 0 · duplicates merged 0
@@ -169,6 +173,7 @@ Since this pack: 1 new commit(s) · 1 changed and 0 missing source file(s) · 1 
 | Command | Purpose | Writes |
 |---|---|---|
 | `scan` | show which files may be used, and why others are excluded | nothing |
+| `approve` | approve the current sources for packing (the skill always asks you first) | only the approval, outside the project |
 | `pack` | build a pack from approved sources and an optional handoff | `.context-bridge/` in the project |
 | `verify` | check structure, integrity, provenance, safety and freshness | nothing |
 | `resume` | verify the latest pack and print it for a new session | nothing |
@@ -177,7 +182,7 @@ Since this pack: 1 new commit(s) · 1 changed and 0 missing source file(s) · 1 
 ```sh
 cb() { python3 -I ~/.claude/skills/context-bridge/scripts/cb.py "$@"; }
 cb scan --root .
-cb pack --root . --approve            # first pack in a project: approve the listed sources
+cb approve --root .                  # first pack in a project: approve the listed sources
 cb pack --root . --handoff-json '{"next_steps": [{"text": "Write the importer.", "status": "fact"}]}'
 cb pack --root . --budget 4000        # more room for large projects (the default is 2000)
 cb verify --root . --json
@@ -195,8 +200,9 @@ Exit codes: `0` ok · `1` warnings · `2` failed or blocked · `3` critical info
 - A short, marked **block in a CLAUDE.md file** (global, project or local) that tells future
   sessions when to resume and when to offer a pack.
 - The **auto-resume SessionStart hook**. When a session starts or resumes, it verifies the latest
-  pack and loads a digest of about 350 tokens. In a project without a pack it loads nothing, and
-  from a pack that fails verification it loads only a one-line warning. It never writes anything.
+  pack and loads a digest of about 350 tokens. In a project without a pack it loads nothing. From
+  a pack that fails verification, or that Context Bridge did not write for this folder on this
+  machine, it loads only a one-line warning. It never writes anything.
 
 Nothing is written without a preview id. Every write is backed up, and `setup undo` restores the
 backup exactly. See [docs/setup.md](docs/setup.md).
@@ -239,7 +245,12 @@ Markdown file is portable: you can paste it into another assistant.
   is read.
 - `.env` files, keys and credentials are never opened. Secrets and personal data are redacted, and
   files with a private key are excluded.
-- Approvals are stored outside the project, so a repository cannot ship its own approval.
+- Approvals are stored outside the project, so a repository cannot ship its own approval. Approving
+  is a separate command that the skill cannot run without asking you.
+- `pack` records the hash of every pack outside the project, and only recorded packs pass
+  `verify`. A pack that comes with a repository (committed and cloned) or a copied folder is
+  refused, so a repository cannot ship a pack that loads as verified either. Packs therefore stay
+  with their folder and machine; to continue elsewhere, pack again there.
 - Pack content is data, not instructions. It is escaped so that it cannot close its wrapper, and
   instruction-like text is flagged.
 - git runs read-only with hardened options. It does not run at all if the repository's own
