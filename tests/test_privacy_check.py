@@ -44,7 +44,9 @@ class HookTests(unittest.TestCase):
         self.addCleanup(self.project.cleanup)
         self.project.git_init(commit=False)
         (self.project.root / ".git" / "info").mkdir(exist_ok=True)
-        (self.project.root / ".git" / "info" / "private-terms").write_text("# local\nhushhush\n", encoding="utf-8")
+        (self.project.root / ".git" / "info" / "private-terms").write_text(
+            "# local\nhushhush\n", encoding="utf-8", newline="\n"
+        )
 
     def run_check(self, *args: str, email: str = NOREPLY) -> subprocess.CompletedProcess:
         env = isolated_env(self.project.home)
@@ -92,9 +94,9 @@ class HookTests(unittest.TestCase):
 
     def test_commit_message(self) -> None:
         msg = self.project.root / "MSG"
-        msg.write_text("Add feature\n# hushhush in a comment is ignored\n", encoding="utf-8")
+        msg.write_text("Add feature\n# hushhush in a comment is ignored\n", encoding="utf-8", newline="\n")
         self.assertEqual(self.run_check("--message", str(msg)).returncode, 0)
-        msg.write_text("Add hushhush feature\n", encoding="utf-8")
+        msg.write_text("Add hushhush feature\n", encoding="utf-8", newline="\n")
         self.assertEqual(self.run_check("--message", str(msg)).returncode, 1)
 
     def test_history_finds_leaks_in_old_commits(self) -> None:

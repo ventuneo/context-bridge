@@ -19,7 +19,7 @@ class SafePathTestCase(unittest.TestCase):
         self.addCleanup(self.project.cleanup)
         self.root = self.project.root
         self.outside = self.project.base / "outside.txt"
-        self.outside.write_text("outside secret", encoding="utf-8")
+        self.outside.write_text("outside secret", encoding="utf-8", newline="\n")
 
     def assertReason(self, rel: str, reason: str, max_bytes: int = 1024) -> None:
         with self.assertRaises(UnsafePathError) as ctx:

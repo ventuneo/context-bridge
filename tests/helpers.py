@@ -221,6 +221,14 @@ class TempProject:
         )
 
 
+def toml_path(path: Path | str) -> str:
+    """A path as a TOML literal string: no escapes, so Windows backslashes stay as they are."""
+    text = str(path)
+    if "'" in text or "\n" in text:
+        raise ValueError(f"cannot write {text!r} as a TOML literal string")
+    return f"'{text}'"
+
+
 def hook_argv(hook: dict) -> list[str]:
     """What Claude Code starts for a command hook: exec form directly, shell form through ``sh -c``."""
     if "args" in hook:

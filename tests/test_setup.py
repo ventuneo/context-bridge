@@ -31,7 +31,7 @@ class SetupTestCase(unittest.TestCase):
         self.claude = self.project.home / ".claude"
         self.claude.mkdir()
         self.global_md = self.claude / "CLAUDE.md"
-        self.global_md.write_text(GERMAN_RULES, encoding="utf-8")
+        self.global_md.write_text(GERMAN_RULES, encoding="utf-8", newline="\n")
         self.project.write("CLAUDE.md", ENGLISH_RULES)
 
     def cfg(self):  # noqa: ANN201
@@ -111,7 +111,7 @@ class InstallTests(SetupTestCase):
 
     def test_block_is_short_and_matches_the_heading_style(self) -> None:
         # GERMAN_RULES has one "#" title; a file structured with several "#" sections gets a "#" section.
-        self.global_md.write_text("# Über mich\n- a\n\n# Antworten\n- b\n", encoding="utf-8")
+        self.global_md.write_text("# Über mich\n- a\n\n# Antworten\n- b\n", encoding="utf-8", newline="\n")
         block = plan_install("global", "instructions", self.root, self.cfg()).after.decode().split("\n\n", 2)[-1]
         self.assertTrue(block.splitlines()[1] == "# Context Bridge", block)
         self.assertEqual(sum(1 for line in block.splitlines() if line.startswith("- ")), 2)
@@ -146,7 +146,7 @@ class IdempotencyTests(SetupTestCase):
     def test_a_different_block_is_updated_in_place(self) -> None:
         self.install(lang="en")
         (self.root / "CLAUDE.md").write_text(
-            (self.root / "CLAUDE.md").read_text(encoding="utf-8") + "\n- Added later.\n", encoding="utf-8"
+            (self.root / "CLAUDE.md").read_text(encoding="utf-8") + "\n- Added later.\n", encoding="utf-8", newline="\n"
         )
         plan = self.install(lang="de")
         self.assertEqual(plan.action, "update")
@@ -178,7 +178,9 @@ class ConsentTests(SetupTestCase):
         plan = plan_install("project", "instructions", self.root, self.cfg())
         with self.assertRaises(SetupError):
             apply(plan, "000000000000")
-        (self.root / "CLAUDE.md").write_text(ENGLISH_RULES + "- Edited after the preview.\n", encoding="utf-8")
+        (self.root / "CLAUDE.md").write_text(
+            ENGLISH_RULES + "- Edited after the preview.\n", encoding="utf-8", newline="\n"
+        )
         fresh = plan_install("project", "instructions", self.root, self.cfg())
         with self.assertRaises(SetupError):
             apply(fresh, plan.id)  # the id of the old preview no longer matches
@@ -196,7 +198,7 @@ class UndoTests(SetupTestCase):
     def test_undo_after_an_edit_removes_only_the_block(self) -> None:
         self.install()
         path = self.root / "CLAUDE.md"
-        path.write_text(path.read_text(encoding="utf-8") + "\n- My own new rule.\n", encoding="utf-8")
+        path.write_text(path.read_text(encoding="utf-8") + "\n- My own new rule.\n", encoding="utf-8", newline="\n")
         plan = self.undo()
         self.assertEqual(plan.action, "undo-remove")
         text = path.read_text(encoding="utf-8")
@@ -232,7 +234,7 @@ class ProtectionTests(SetupTestCase):
         vault = self.project.base / "notes-vault"
         (vault / ".obsidian").mkdir(parents=True)
         (vault / "project").mkdir()
-        (vault / "project" / "CLAUDE.md").write_text("notes\n", encoding="utf-8")
+        (vault / "project" / "CLAUDE.md").write_text("notes\n", encoding="utf-8", newline="\n")
         plan = self.assertRefused(vault / "project")
         self.assertIn("Obsidian vault", plan.blockers[0])
         self.assertEqual((vault / "project" / "CLAUDE.md").read_text(encoding="utf-8"), "notes\n")
@@ -240,15 +242,15 @@ class ProtectionTests(SetupTestCase):
     def test_protected_and_denied_locations(self) -> None:
         cfg = self.project.home / ".config" / "context-bridge" / "config.toml"
         cfg.parent.mkdir(parents=True)
-        cfg.write_text(f'[setup]\nprotected_roots = ["{self.root}"]\n', encoding="utf-8")
+        cfg.write_text(f"[setup]\nprotected_roots = [{helpers.toml_path(self.root)}]\n", encoding="utf-8", newline="\n")
         self.assertIn("protected location", self.assertRefused(self.root).blockers[0])
-        cfg.write_text(f'[privacy]\ndeny_roots = ["{self.root}"]\n', encoding="utf-8")
+        cfg.write_text(f"[privacy]\ndeny_roots = [{helpers.toml_path(self.root)}]\n", encoding="utf-8", newline="\n")
         self.assertIn("denied location", self.assertRefused(self.root).blockers[0])
 
     def test_a_project_cannot_lift_protection(self) -> None:
         cfg = self.project.home / ".config" / "context-bridge" / "config.toml"
         cfg.parent.mkdir(parents=True)
-        cfg.write_text(f'[setup]\nprotected_roots = ["{self.root}"]\n', encoding="utf-8")
+        cfg.write_text(f"[setup]\nprotected_roots = [{helpers.toml_path(self.root)}]\n", encoding="utf-8", newline="\n")
         self.project.write(".context-bridge/config.toml", "[setup]\nprotected_roots = []\n")
         self.assertRefused(self.root)
 
@@ -268,7 +270,7 @@ class HookTests(SetupTestCase):
 
     def write_settings(self, data: object) -> Path:
         path = self.claude / "settings.json"
-        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
         return path
 
     def test_hook_keeps_other_settings_is_idempotent_and_undoable(self) -> None:
@@ -292,7 +294,7 @@ class HookTests(SetupTestCase):
         self.install("global", "hook")
         data = json.loads(path.read_text(encoding="utf-8"))
         data["hooks"]["SessionStart"].append({"hooks": [{"type": "command", "command": "other.sh"}]})
-        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
         self.assertEqual(self.undo("global", "hook").action, "undo-remove")
         left = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(left["hooks"]["SessionStart"], [{"hooks": [{"type": "command", "command": "other.sh"}]}])
@@ -300,7 +302,7 @@ class HookTests(SetupTestCase):
 
     def test_invalid_settings_are_never_rewritten(self) -> None:
         path = self.claude / "settings.json"
-        path.write_text('{"hooks": [ broken', encoding="utf-8")
+        path.write_text('{"hooks": [ broken', encoding="utf-8", newline="\n")
         plan = plan_install("global", "hook", self.root, self.cfg())
         self.assertIn("not valid JSON", plan.blockers[0])
         self.assertEqual(path.read_text(encoding="utf-8"), '{"hooks": [ broken')
@@ -385,7 +387,7 @@ class CliTests(unittest.TestCase):
         self.project = TempProject()
         self.addCleanup(self.project.cleanup)
         (self.project.home / ".claude").mkdir()
-        (self.project.home / ".claude" / "CLAUDE.md").write_text(GERMAN_RULES, encoding="utf-8")
+        (self.project.home / ".claude" / "CLAUDE.md").write_text(GERMAN_RULES, encoding="utf-8", newline="\n")
         self.project.write("CLAUDE.md", ENGLISH_RULES)
 
     def preview_id(self, *args: str) -> str:

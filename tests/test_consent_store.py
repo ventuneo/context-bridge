@@ -100,7 +100,7 @@ class StoreTests(unittest.TestCase):
     def test_latest_symlink_is_replaced_not_followed(self) -> None:
         self.write("20261107T100000Z-abcdef")
         target = self.project.base / "victim.md"
-        target.write_text("keep me", encoding="utf-8")
+        target.write_text("keep me", encoding="utf-8", newline="\n")
         latest = self.root / ".context-bridge" / "latest.md"
         latest.unlink()
         latest.symlink_to(target)
@@ -112,7 +112,7 @@ class StoreTests(unittest.TestCase):
         for second in range(5):
             self.write(f"20261107T10000{second}Z-abcdef", keep=3)
         packs = self.root / ".context-bridge" / "packs"
-        (packs / "notes.txt").write_text("not a pack", encoding="utf-8")
+        (packs / "notes.txt").write_text("not a pack", encoding="utf-8", newline="\n")
         self.write("20261107T100009Z-abcdef", keep=3)
         names = sorted(p.name for p in packs.iterdir())
         self.assertEqual(

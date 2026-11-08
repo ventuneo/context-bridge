@@ -77,7 +77,7 @@ class DenyRootTests(unittest.TestCase):
         self.addCleanup(self.project.cleanup)
         self.private = self.project.base / "private"
         (self.private / "sub").mkdir(parents=True)
-        (self.private / "sub" / "file.md").write_text("x", encoding="utf-8")
+        (self.private / "sub" / "file.md").write_text("x", encoding="utf-8", newline="\n")
 
     def test_blocks_root_inside_and_below(self) -> None:
         deny = DenyRoots([self.private])

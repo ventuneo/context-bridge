@@ -39,7 +39,7 @@ def build_sample(project: TempProject) -> None:
     w("certs/server.key", "key material\n")
     w("node_modules/pkg/README.md", "# vendored\n")
     w("CLAUDE.local.md", "personal notes\n")
-    (project.base / "outside.md").write_text("outside the project\n", encoding="utf-8")
+    (project.base / "outside.md").write_text("outside the project\n", encoding="utf-8", newline="\n")
     if helpers.SYMLINKS:  # Windows without Developer Mode cannot create symlinks
         project.symlink("docs/escape.md", project.base / "outside.md")
 
@@ -53,7 +53,7 @@ class ScanTestCase(unittest.TestCase):
 
     def write_user_config(self, text: str) -> None:
         self.user_config.parent.mkdir(parents=True, exist_ok=True)
-        self.user_config.write_text(text, encoding="utf-8")
+        self.user_config.write_text(text, encoding="utf-8", newline="\n")
 
     def run_scan(self) -> scan.ScanReport:
         return scan.scan(self.project.root, self.user_config)
@@ -110,7 +110,7 @@ class SampleProjectTests(ScanTestCase):
         actual = self.report.to_dict()
         if os.environ.get("CB_UPDATE_GOLDEN") == "1":
             GOLDEN.parent.mkdir(exist_ok=True)
-            GOLDEN.write_text(json.dumps(actual, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            GOLDEN.write_text(json.dumps(actual, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
         self.assertEqual(actual, json.loads(GOLDEN.read_text(encoding="utf-8")))
 
 
@@ -144,7 +144,7 @@ class DenyRootTests(ScanTestCase):
     def test_denied_root_is_refused_before_anything_is_read(self) -> None:
         self.project.write("README.md", "# x\n")
         self.project.write(".context-bridge/config.toml", "[scan]\n")
-        self.write_user_config(f'[privacy]\ndeny_roots = ["{self.project.root}"]\n')
+        self.write_user_config(f"[privacy]\ndeny_roots = [{helpers.toml_path(self.project.root)}]\n")
         opened: list[str] = []
         root = str(self.project.root)
         hook_state["recording"] = opened
@@ -158,7 +158,7 @@ class DenyRootTests(ScanTestCase):
     def test_denied_subdirectory_is_excluded_in_walk_and_git_mode(self) -> None:
         self.project.write("README.md", "# x\n")
         self.project.write("private/notes.md", "secret notes\n")
-        self.write_user_config(f'[privacy]\ndeny_roots = ["{self.project.root / "private"}"]\n')
+        self.write_user_config(f"[privacy]\ndeny_roots = [{helpers.toml_path(self.project.root / 'private')}]\n")
         self.assertEqual(self.run_scan().excluded[policy.DENY_ROOT], ["private/"])
         with mock.patch.dict(os.environ, {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}):
             self.project.git_init()
@@ -172,9 +172,9 @@ class ExternalSourceTests(ScanTestCase):
         super().setUp()
         self.notes = self.project.home / "notes"
         (self.notes / "blocked").mkdir(parents=True)
-        (self.notes / "project.md").write_text("Goal: ship the MVP\n", encoding="utf-8")
-        (self.notes / "blocked" / "x.md").write_text("never\n", encoding="utf-8")
-        (self.project.home / "elsewhere.md").write_text("not allowed\n", encoding="utf-8")
+        (self.notes / "project.md").write_text("Goal: ship the MVP\n", encoding="utf-8", newline="\n")
+        (self.notes / "blocked" / "x.md").write_text("never\n", encoding="utf-8", newline="\n")
+        (self.project.home / "elsewhere.md").write_text("not allowed\n", encoding="utf-8", newline="\n")
         self.project.write("README.md", "# x\n")
         self.project.write(
             ".context-bridge/config.toml",
@@ -183,7 +183,7 @@ class ExternalSourceTests(ScanTestCase):
 
     def test_only_user_allowed_locations_and_deny_wins(self) -> None:
         self.write_user_config(
-            f'[privacy]\nallowed_external_roots = ["{self.notes}"]\ndeny_roots = ["{self.notes / "blocked"}"]\n'
+            f"[privacy]\nallowed_external_roots = [{helpers.toml_path(self.notes)}]\ndeny_roots = [{helpers.toml_path(self.notes / 'blocked')}]\n"
         )
         report = self.run_scan()
         external = [f for f in report.included if f.origin == "external"]
@@ -240,7 +240,9 @@ class CliTests(unittest.TestCase):
     def test_denied_root_exit_code(self) -> None:
         cfg = self.project.home / ".config" / "context-bridge" / "config.toml"
         cfg.parent.mkdir(parents=True)
-        cfg.write_text(f'[privacy]\ndeny_roots = ["{self.project.root}"]\n', encoding="utf-8")
+        cfg.write_text(
+            f"[privacy]\ndeny_roots = [{helpers.toml_path(self.project.root)}]\n", encoding="utf-8", newline="\n"
+        )
         result = self.project.run_cb("scan")
         self.assertEqual(result.returncode, 2)
         self.assertIn("denied location", result.stderr)
@@ -250,6 +252,7 @@ class CliTests(unittest.TestCase):
         result = self.project.run_cb("scan", "--root", str(self.project.base / "nope"))
         self.assertEqual(result.returncode, 2)
 
+    @unittest.skipIf(os.name == "nt", "Windows does not allow control characters in file names")
     def test_hostile_file_names_cannot_inject_terminal_escapes(self) -> None:
         self.project.write("docs/\x1b[31mred.md", "# x\n")
         result = self.project.run_cb("scan")

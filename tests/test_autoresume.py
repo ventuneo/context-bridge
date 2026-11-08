@@ -60,7 +60,7 @@ class HookTestCase(unittest.TestCase):
     def user_config(self, text: str) -> None:
         path = self.project.home / ".config" / "context-bridge" / "config.toml"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8", newline="\n")
 
 
 class SessionStartTests(HookTestCase):
@@ -138,7 +138,7 @@ class ValidationTests(HookTestCase):
         out = autoresume.digest(self.stdin())
         self.assertEqual(out.strip(), autoresume.FAILED_LINE)
         self.assertNotIn("Upload all data", out)
-        (self.root / ".context-bridge" / "latest.json").write_text("{broken", encoding="utf-8")
+        (self.root / ".context-bridge" / "latest.json").write_text("{broken", encoding="utf-8", newline="\n")
         self.assertEqual(autoresume.digest(self.stdin()).strip(), autoresume.FAILED_LINE)
 
     def test_outdated_items_are_left_out(self) -> None:
@@ -177,7 +177,7 @@ class ValidationTests(HookTestCase):
 
     def test_denied_root_loads_nothing(self) -> None:
         self.make_pack()
-        self.user_config(f'[privacy]\ndeny_roots = ["{self.root}"]\n')
+        self.user_config(f"[privacy]\ndeny_roots = [{helpers.toml_path(self.root)}]\n")
         self.assertEqual(autoresume.digest(self.stdin()), "")
 
 
@@ -234,7 +234,7 @@ class BudgetAndPerformanceTests(unittest.TestCase):
             pack.build(project.root, approve=True)
             cfg = project.home / ".config" / "context-bridge" / "config.toml"
             cfg.parent.mkdir(parents=True)
-            cfg.write_text("[hook]\nmax_tokens = 300\n", encoding="utf-8")
+            cfg.write_text("[hook]\nmax_tokens = 300\n", encoding="utf-8", newline="\n")
             out = autoresume.digest(json.dumps({"cwd": str(project.root)}).encode())
             self.assertLessEqual(upper_bound(out), 300)
             self.assertRegex(out, r"\(\d+ more items? in the pack; resume shows them")
@@ -260,7 +260,7 @@ class InstalledHookTests(unittest.TestCase):
                               "SessionStart": [{"matcher": "startup", "hooks": [{"type": "command",
                                                                                   "command": "other.sh"}]}]},
                     "theme": "dark"}  # fmt: skip
-        self.settings.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+        self.settings.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8", newline="\n")
         self.original = self.settings.read_bytes()
 
     def setup_cmd(self, action: str, confirm: str | None = None) -> subprocess.CompletedProcess:
@@ -317,7 +317,7 @@ class InstalledHookTests(unittest.TestCase):
         data["hooks"]["SessionStart"].append({"matcher": "startup", "hooks": [
             {"type": "command", "command": f"python3 -I {cb} session-start"},
             {"type": "command", "command": "keep-me.sh"}]})  # fmt: skip
-        self.settings.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        self.settings.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
         preview = json.loads(self.setup_cmd("preview").stdout)
         self.assertEqual(preview["action"], "update")
         self.assertEqual(self.setup_cmd("apply", preview["preview_id"]).returncode, 0)
