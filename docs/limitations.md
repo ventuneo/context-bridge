@@ -1,0 +1,74 @@
+# Known limitations
+
+Context Bridge 0.1 is an early release. This page lists what it does not do, or does only
+approximately, so that you can judge its output. The [quality report](quality.md) has the
+measurements behind the numbers.
+
+## Token counts
+
+The Python standard library has no tokenizer, so token counts are estimates. They are a weighted sum
+of six text features, calibrated against real token counts (see
+[Token estimate](quality.md#token-estimate)).
+
+- **Calibrated for Claude's tokenizer.** Claude Haiku 5.5 and Opus 5.5 counted exactly the same
+  tokens. Other vendors' tokenizers and other Claude generations may count differently.
+- **Calibrated on English and German.** Other languages are estimated with the English weights.
+  Text in scripts such as Chinese or Japanese is underestimated considerably, because each
+  character is counted like an English letter. This was not measured. Heavy emoji use and long
+  hexadecimal strings are less accurate too.
+- **Accuracy.** On the 16 calibration samples the estimate is off by 4.3 % on average and by at
+  most 10.2 % (leave-one-out). Pack budgets are therefore approximate, and by default the budget may
+  be exceeded to keep critical items. The SessionStart hook uses an upper bound (the estimate plus
+  11 %) so that its digest stays within its limit.
+- **Fixed parts cost tokens.** The trust notice, the coverage line, the status line and the sources
+  table of a pack take about 350 to 500 tokens. With budgets below about 1000, little room is left
+  for items.
+
+## Context extraction
+
+- **Selective, not a summary.** Only recognised parts are packed:
+  - sections under recognised headings in English and German, such as Goals, Constraints, Rules,
+    Decisions, Next steps, Status, Open questions, Tasks and Commands;
+  - `Key: value` lines such as `Goal:`, `Decision:` or `Status:`;
+  - project metadata from manifests and git.
+
+  Text under other headings ("Notes", "Background") is not packed, and it is not reported as lost.
+  The coverage statement of every pack says that extraction is selective.
+- **Lexical, not semantic.** Context Bridge copies statements; it does not rephrase, merge or judge
+  them. Contradicting statements are all kept. Near-duplicates are merged only when their wording is
+  very similar.
+- **Only an allowlist of files is read:**
+  - READMEs and agent rule files (`CLAUDE.md`, `AGENTS.md` and similar);
+  - `docs/**/*.md`, ADR folders, changelogs and common manifests.
+
+  Source code is counted but never read, so anything stated only in code is missing.
+- **Size limits.** By default files over 256 KB are skipped, and at most 2 MB are read per project.
+- **The session handoff cannot be verified.** Entries from the conversation are checked for format,
+  secrets and instruction-like text, but not against files. They are marked `(unverified)`. Someone
+  with write access to the pack could change such an entry and recompute every hash, and that would
+  not be detected; a signature is planned for a later version.
+- **Changed files hide forgeries.** For an unchanged file, every item must be re-derivable, which
+  detects forged items. Once the file has changed, a forged item cannot be told apart from an
+  outdated one; both are reported as outdated.
+- **Prompt-injection detection is heuristic.** It knows common patterns in English and German, fake
+  chat markup, hidden comments and invisible Unicode. It cannot catch every attempt. The main
+  defence is that pack content is always presented as untrusted data.
+
+## Platforms and integration
+
+- **macOS and Linux only.** Windows is untested: file permissions, symbolic links and
+  `python3 -I` behave differently there.
+- **`python3` must be Python 3.11 or newer.** The skill and the hook call `python3`. With an older
+  `python3` they only print an error.
+- **Tested in headless sessions.** The skill and the SessionStart hook were tested end to end with
+  `claude -p`. Interactive sessions use the same mechanisms, but no automated test covers them.
+- **The hook answers startup and resume.** After `/clear` or a compaction it stays silent unless you
+  configure otherwise. When a session is resumed, Claude Code adds the digest again only if it
+  changed.
+- **git can be skipped.** If a repository's own git configuration could start programs (fsmonitor,
+  filters, a pager and similar), Context Bridge does not run git there and packs without repository
+  information.
+- **Approvals belong to a folder.** They are stored per real path. After you move a project, you
+  approve its sources again.
+- **The name.** Several unrelated projects are called "context-bridge". A different skill with the
+  same name in `~/.claude/skills/` would collide with this one.

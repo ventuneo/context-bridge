@@ -12,10 +12,11 @@ entry and further integrations come after the MVP.
 | M4 `verify` + `resume` | Structural validation, integrity, freshness, safety re-scan, change summary, untrusted-data wrapper | Tampering and stale sources are detected |
 | M5 Context Quality Score | Synthetic reference cases with ground truth; weighted retention of goals, constraints, decisions, next steps and facts | CQS ≥ 90 at the default budget, 100 % of critical items kept, no forbidden content |
 | M6 Skill | `SKILL.md`, references, local end-to-end test in Claude Code | Save and resume work in a real session |
+| M7 Self-integration | `setup`: CLAUDE.md block with preview id, backup and undo; protected locations | Idempotent install and exact undo |
+| M7.1 Auto-resume | Optional SessionStart hook that loads a verified digest; calibrated token estimate; git freshness that separates repository progress from source changes | Digest within its token limit in real sessions |
+| M8 Release preparation | README and docs for users and contributors, community files, CI on Linux and macOS with Python 3.11–3.15, fresh-install smoke test | Fresh install works in an isolated home folder |
 
-Status: M0–M7.1 done (MVP, self-integration, auto-resume hook; not published). Before the first
-release: calibrated token estimate and git freshness that separates repository progress from
-source changes (done).
+Status: M0–M8 done. Version 0.1.0 is prepared and not published yet.
 
 ## Planned after the MVP
 

@@ -13,6 +13,9 @@ Roadmap: `docs/roadmap.md`.
 | `schema/` | Published JSON Schema of the pack format (cross-checked by `tools/check_schema.py` in CI) |
 | `quality/` | Context Quality Score: synthetic reference cases with ground truth, `evaluate.py`, `run.py`, `baseline.json` (see `docs/quality.md`) |
 | `tests/` | `unittest` suite; `helpers.py` isolates HOME and guards the real home directory |
+| `quality/tokens/` | Calibration samples, measured token counts and the scripts that measure and fit them |
+| `examples/demo-project/` | Synthetic project used by the README demo, tests and the install smoke test |
+| `docs/` | User and maintainer docs: install, setup, limitations, quality, release checklist |
 | `tools/privacy_check.py` | Repository privacy guard used by `.githooks/` |
 
 ## Commands
@@ -25,6 +28,8 @@ python3 -I skills/context-bridge/scripts/cb.py verify|resume --root <dir> [--pac
 python3 -I skills/context-bridge/scripts/cb.py setup [status|preview|apply|undo-preview|undo] --target <scope> [--hook]
 python3 -I quality/run.py [--check] [--details]      # Context Quality Score; --check = gates + baseline
 python3 tools/privacy_check.py --all | --history
+python3 -I quality/tokens/calibrate.py --check       # token estimate still fits its measurements
+python3 -I tools/install_smoke.py                    # fresh install in a throwaway home (tests the last commit)
 ```
 
 Local install for testing: symlink `~/.claude/skills/context-bridge` to `skills/context-bridge`.
