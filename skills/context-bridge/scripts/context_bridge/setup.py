@@ -29,14 +29,15 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import stat
 import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
-from . import autoresume, safepath
+from . import autoresume, compat, safepath
 from .config import Config, load_config
 from .errors import EXIT_ERROR, EXIT_OK, EXIT_WARNINGS, ContextBridgeError, UsageError
 
@@ -78,7 +79,7 @@ class SetupError(ContextBridgeError):
 
 
 def _home() -> Path:
-    return Path(os.environ.get("HOME") or os.path.expanduser("~"))
+    return compat.home()  # on Windows the user profile, which is where Claude Code keeps .claude
 
 
 def display(path: Path) -> str:
@@ -273,8 +274,34 @@ def hook_installed(root: Path) -> bool:
     return False
 
 
-def hook_command(script: Path) -> str:
-    return f"python3 -I {script}{HOOK_SUFFIX}"
+_UNQUOTABLE_ON_WINDOWS = re.compile(r'[$`%"]')  # would be expanded by Git Bash or cmd.exe inside quotes
+
+
+def hook_command(script: Path | str, *, windows: bool = compat.WINDOWS, executable: str | None = None) -> str:
+    """The SessionStart command line.
+
+    POSIX: ``python3 -I <script> session-start``, the script path quoted only if it needs it.
+    Windows: the Python that runs setup (``python3`` is usually missing there) and the script,
+    both with forward slashes and in double quotes, which Git Bash (the shell Claude Code uses
+    on Windows) and cmd.exe both accept.
+    """
+    if windows:
+        python = PureWindowsPath(executable or sys.executable).as_posix()
+        return f'"{python}" -I "{PureWindowsPath(script).as_posix()}"{HOOK_SUFFIX}'
+    return f"python3 -I {shlex.quote(str(script))}{HOOK_SUFFIX}"
+
+
+def hook_command_problem(
+    *, windows: bool = compat.WINDOWS, script: Path | str, executable: str | None = None
+) -> str | None:
+    """Why the hook command cannot be written safely on this system, or None."""
+    if not windows:
+        return None
+    for label, value in (("Python", executable or sys.executable), ("the skill", str(script))):
+        if _UNQUOTABLE_ON_WINDOWS.search(value):
+            return (f"the path of {label} contains $, `, % or a quote, which the shell would expand; install the "
+                    "hook by hand (see docs/setup.md)")  # fmt: skip
+    return None
 
 
 def _is_our_hook(hook: Any) -> bool:
@@ -345,7 +372,12 @@ def plan_install(
         data = _parse_settings(plan, before)
         if data is None:
             return plan
-        command = hook_command(script or Path(sys.argv[0]).absolute())
+        script_path = script or Path(sys.argv[0]).absolute()
+        problem = hook_command_problem(script=script_path)
+        if problem:
+            plan.blockers.append(problem)
+            return plan
+        command = hook_command(script_path)
         desired = {"hooks": [{"type": "command", "command": command, "timeout": HOOK_TIMEOUT}]}
         entries = data.setdefault("hooks", {}).setdefault("SessionStart", [])
         ours = [e for e in entries if isinstance(e, dict) and any(_is_our_hook(h) for h in e.get("hooks", []))]
@@ -416,8 +448,7 @@ def plan_install(
 
 
 def _state_dir() -> Path:
-    base = os.environ.get("XDG_STATE_HOME") or str(_home() / ".local" / "state")
-    return Path(base) / "context-bridge" / "setup"
+    return compat.state_home() / "context-bridge" / "setup"
 
 
 def _manifests(path: Path, kind: str) -> list[tuple[Path, dict[str, Any]]]:

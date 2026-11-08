@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
+import helpers
 from helpers import TempProject
 
 from context_bridge import config
@@ -94,6 +95,7 @@ class ProjectCannotLoosenTests(ConfigTestCase):
         self.assertEqual(len(cfg.external_sources), 1)
         self.assertTrue(cfg.project_config_loaded)
 
+    @helpers.requires_symlinks
     def test_symlinked_project_config_is_refused(self) -> None:
         outside = self.project.base / "elsewhere.toml"
         outside.write_text("[scan]\n", encoding="utf-8")

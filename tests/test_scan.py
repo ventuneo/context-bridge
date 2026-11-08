@@ -40,7 +40,8 @@ def build_sample(project: TempProject) -> None:
     w("node_modules/pkg/README.md", "# vendored\n")
     w("CLAUDE.local.md", "personal notes\n")
     (project.base / "outside.md").write_text("outside the project\n", encoding="utf-8")
-    project.symlink("docs/escape.md", project.base / "outside.md")
+    if helpers.SYMLINKS:  # Windows without Developer Mode cannot create symlinks
+        project.symlink("docs/escape.md", project.base / "outside.md")
 
 
 class ScanTestCase(unittest.TestCase):
@@ -80,7 +81,8 @@ class SampleProjectTests(ScanTestCase):
         self.assertEqual(excluded[policy.NOT_IN_ALLOWLIST], ["src/app.py"])
         self.assertEqual(excluded[scan.BINARY], ["docs/diagram.md"])
         self.assertEqual(excluded[scan.CONTAINS_PRIVATE_KEY], ["docs/keys.md"])
-        self.assertEqual(excluded[safepath.SYMLINK_OUTSIDE_ROOT], ["docs/escape.md"])
+        if helpers.SYMLINKS:
+            self.assertEqual(excluded[safepath.SYMLINK_OUTSIDE_ROOT], ["docs/escape.md"])
 
     def test_findings(self) -> None:
         setup = self.by_path["docs/setup.md"]
@@ -103,6 +105,7 @@ class SampleProjectTests(ScanTestCase):
         for forbidden in (FAKE_TOKEN, FAKE_EMAIL, README_SENTENCE, "MIIEpAIBAAKCAQEA", "outside the project"):
             self.assertNotIn(forbidden, dumped)
 
+    @helpers.requires_symlinks
     def test_golden_report(self) -> None:
         actual = self.report.to_dict()
         if os.environ.get("CB_UPDATE_GOLDEN") == "1":

@@ -5,6 +5,7 @@ import os
 import stat
 import unittest
 
+import helpers
 from helpers import TempProject, patched_home
 
 from context_bridge import consent, store
@@ -86,6 +87,7 @@ class StoreTests(unittest.TestCase):
         self.write("20261107T100000Z-abcdef")
         self.assertEqual(self.project.git("status", "--porcelain").stdout, "")
 
+    @helpers.requires_symlinks
     def test_symlinked_store_is_refused(self) -> None:
         elsewhere = self.project.base / "elsewhere"
         elsewhere.mkdir()
@@ -94,6 +96,7 @@ class StoreTests(unittest.TestCase):
             self.write("20261107T100000Z-abcdef")
         self.assertEqual(list(elsewhere.iterdir()), [])
 
+    @helpers.requires_symlinks
     def test_latest_symlink_is_replaced_not_followed(self) -> None:
         self.write("20261107T100000Z-abcdef")
         target = self.project.base / "victim.md"

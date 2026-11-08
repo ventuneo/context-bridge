@@ -6,6 +6,7 @@ Everything runs against a fake home directory; no real CLAUDE.md or settings fil
 from __future__ import annotations
 
 import json
+import shlex
 import stat
 import unittest
 from pathlib import Path
@@ -63,6 +64,7 @@ class DetectionTests(SetupTestCase):
         agents = next(f for f in found.values() if f["path"].endswith("AGENTS.md"))
         self.assertEqual(agents["similar_lines"], [1])
 
+    @helpers.requires_symlinks
     def test_symlinked_vault_file_is_recognised_and_protected(self) -> None:
         vault = self.project.base / "vault"
         (vault / ".obsidian").mkdir(parents=True)
@@ -84,18 +86,21 @@ class InstallTests(SetupTestCase):
 
     def test_install_appends_the_block_keeps_everything_else_and_backs_up(self) -> None:
         target = self.root / "CLAUDE.md"
-        target.chmod(0o640)
+        if helpers.POSIX:
+            target.chmod(0o640)
         self.install()
         text = target.read_text(encoding="utf-8")
         self.assertTrue(text.startswith(ENGLISH_RULES))
         self.assertEqual(len(BLOCK_RE.findall(text)), 1)
         self.assertIn("## Context Bridge", text)
-        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o640)
+        if helpers.POSIX:  # the mode is kept
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o640)
         manifest = json.loads(self.backups()[0].read_text(encoding="utf-8"))
         self.assertEqual((manifest["action"], manifest["existed"]), ("install", True))
         backup = self.backups()[0].parent / "before"
         self.assertEqual(backup.read_text(encoding="utf-8"), ENGLISH_RULES)
-        self.assertEqual(stat.S_IMODE(backup.stat().st_mode), 0o600)
+        if helpers.POSIX:  # the backup is private
+            self.assertEqual(stat.S_IMODE(backup.stat().st_mode), 0o600)
 
     def test_block_language_follows_the_file_or_the_choice(self) -> None:
         german = plan_install("global", "instructions", self.root, self.cfg())
@@ -213,6 +218,7 @@ class ProtectionTests(SetupTestCase):
             apply(plan, plan.id)
         return plan
 
+    @helpers.requires_symlinks
     def test_symlinked_target_is_never_written(self) -> None:
         (self.root / "CLAUDE.md").unlink()
         (self.root / "CLAUDE.md").symlink_to(self.global_md)
@@ -271,8 +277,8 @@ class HookTests(SetupTestCase):
         self.assertEqual(data["hooks"]["SessionEnd"], self.SETTINGS["hooks"]["SessionEnd"])
         self.assertEqual((data["permissions"], data["theme"]), (self.SETTINGS["permissions"], "dark"))
         start = data["hooks"]["SessionStart"]
-        self.assertEqual(start, [{"hooks": [{"type": "command", "command": "python3 -I /opt/cb/scripts/cb.py session-start",
-                                             "timeout": 10}]}])  # fmt: skip
+        command = setup.hook_command(Path("/opt/cb/scripts/cb.py"))  # the Windows form differs, see HookCommandTests
+        self.assertEqual(start, [{"hooks": [{"type": "command", "command": command, "timeout": 10}]}])
         again = plan_install("global", "hook", self.root, self.cfg(), script=Path("/opt/cb/scripts/cb.py"))
         self.assertEqual(again.action, "none")
         self.undo("global", "hook")
@@ -295,6 +301,34 @@ class HookTests(SetupTestCase):
         plan = plan_install("global", "hook", self.root, self.cfg())
         self.assertIn("not valid JSON", plan.blockers[0])
         self.assertEqual(path.read_text(encoding="utf-8"), '{"hooks": [ broken')
+
+
+class HookCommandTests(unittest.TestCase):
+    """The SessionStart command line on POSIX systems and on Windows (simulated)."""
+
+    def test_posix_form_is_unchanged_for_plain_paths_and_quoted_otherwise(self) -> None:
+        plain = setup.hook_command("/opt/cb/scripts/cb.py", windows=False)
+        self.assertEqual(plain, "python3 -I /opt/cb/scripts/cb.py session-start")  # installs from 0.1 stay current
+        spaced = setup.hook_command("/Users/alice/My Skills/cb.py", windows=False)
+        self.assertEqual(shlex.split(spaced), ["python3", "-I", "/Users/alice/My Skills/cb.py", "session-start"])
+
+    def test_windows_form_uses_the_running_python_and_forward_slashes(self) -> None:
+        command = setup.hook_command(r"C:\Users\alice\.claude\skills\context-bridge\scripts\cb.py", windows=True,
+                                     executable=r"C:\Program Files\Python313\python.exe")  # fmt: skip
+        self.assertEqual(command, '"C:/Program Files/Python313/python.exe" -I '
+                         '"C:/Users/alice/.claude/skills/context-bridge/scripts/cb.py" session-start')  # fmt: skip
+        self.assertEqual(shlex.split(command), ["C:/Program Files/Python313/python.exe", "-I",
+                                                "C:/Users/alice/.claude/skills/context-bridge/scripts/cb.py", "session-start"])  # fmt: skip
+        self.assertTrue(setup._is_our_hook({"type": "command", "command": command}))
+
+    def test_paths_the_shell_would_expand_block_the_windows_hook(self) -> None:
+        for script in (r"C:\Users\alice\$skills\cb.py", r"C:\Users\alice\a%PATH%\cb.py", r"C:\Users\alice\a`b\cb.py"):
+            with self.subTest(script=script):
+                self.assertIn("install the hook by hand", setup.hook_command_problem(windows=True, script=script) or "")
+        self.assertIsNone(
+            setup.hook_command_problem(windows=True, script=r"C:\Users\alice\cb.py", executable="C:/py/python.exe")
+        )
+        self.assertIsNone(setup.hook_command_problem(windows=False, script="/opt/$weird/cb.py"))
 
 
 class HookAwareBlockTests(SetupTestCase):

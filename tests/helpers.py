@@ -77,7 +77,9 @@ def _symlinks_supported() -> bool:
     return True
 
 
-SYMLINKS = _symlinks_supported()
+# CB_TEST_NO_SYMLINKS=1 simulates Windows without Developer Mode, where creating a symlink fails.
+_NO_SYMLINKS = os.environ.get("CB_TEST_NO_SYMLINKS") == "1"
+SYMLINKS = not _NO_SYMLINKS and _symlinks_supported()
 requires_symlinks = unittest.skipUnless(
     SYMLINKS, "creating symbolic links needs Developer Mode or admin rights on Windows"
 )
@@ -165,6 +167,8 @@ class TempProject:
     def symlink(self, rel: str, target: str | Path) -> Path:
         path = self.root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
+        if _NO_SYMLINKS:
+            raise OSError("simulated: creating symlinks needs Developer Mode on Windows")
         path.symlink_to(target)
         return path
 

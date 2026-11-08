@@ -43,9 +43,10 @@ class SkillTests(unittest.TestCase):
         for trigger in ("where were we", "Kontext sichern", "wo waren wir", "resume"):
             self.assertIn(trigger, fields["description"])
         # The skill may only run its own script, and never a writing setup step without a prompt.
-        pre = "python3 -I ${CLAUDE_SKILL_DIR}/scripts/cb.py"
-        allowed = [f"Bash({pre} {c} *)" for c in ("scan", "pack", "verify", "resume", "setup status",
-                                                   "setup preview", "setup undo-preview")]  # fmt: skip
+        # python3 everywhere; python and py -3 for Windows, where python3 is usually missing.
+        allowed = [f"Bash({python} ${{CLAUDE_SKILL_DIR}}/scripts/cb.py {c} *)"
+                   for python in ("python3 -I", "python -I", "py -3 -I")
+                   for c in ("scan", "pack", "verify", "resume", "setup status", "setup preview", "setup undo-preview")]  # fmt: skip
         self.assertEqual(fields["allowed-tools"], ", ".join(allowed))
         self.assertNotIn("setup apply", fields["allowed-tools"])
         self.assertNotIn("setup undo *", fields["allowed-tools"])

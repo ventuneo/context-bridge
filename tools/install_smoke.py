@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Smoke test of a fresh installation, done the way docs/install.md and docs/setup.md describe it.
 
-Everything happens in a throwaway folder: HOME, the XDG folders and the git configuration point
-into it, so neither your real home folder nor your Claude Code settings are read or changed.
+Everything happens in a throwaway folder: HOME (USERPROFILE, APPDATA and LOCALAPPDATA on
+Windows) and the git configuration point into it, so neither your real home folder nor your
+Claude Code settings are read or changed. On Windows the skill is linked with a directory
+junction, as docs/install.md describes, because symlinks need Developer Mode there.
 
 1. A bare copy of the source repository serves as "GitHub". It gets two tags: an older commit
    (the installed release) and the commit under test (the update).
@@ -33,6 +35,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+WINDOWS = os.name == "nt"
 IDENTITY = {"GIT_AUTHOR_NAME": "Smoke Test", "GIT_AUTHOR_EMAIL": "smoke@example.com",
             "GIT_COMMITTER_NAME": "Smoke Test", "GIT_COMMITTER_EMAIL": "smoke@example.com"}  # fmt: skip
 HANDOFF = {
@@ -47,15 +50,42 @@ class SmokeFailure(Exception):
     pass
 
 
+def is_link(path: Path) -> bool:
+    """A symbolic link or a Windows directory junction."""
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return False
+    return stat.S_ISLNK(st.st_mode) or getattr(st, "st_reparse_tag", 0) in (0xA000000C, 0xA0000003)
+
+
 def tree(root: Path) -> dict[str, bytes]:
     """Every file below ``root`` (links as their target text), for exact before/after comparisons."""
     files = {}
-    for path in sorted(root.rglob("*")):
-        if path.is_symlink():
-            files[str(path.relative_to(root))] = os.readlink(path).encode()
-        elif path.is_file():
-            files[str(path.relative_to(root))] = path.read_bytes()
-    return files
+    for dirpath, dirnames, filenames in os.walk(root):
+        for name in list(dirnames):  # never descend into a link or junction
+            if is_link(Path(dirpath, name)):
+                files[Path(dirpath, name).relative_to(root).as_posix()] = os.readlink(Path(dirpath, name)).encode()
+                dirnames.remove(name)
+        for name in filenames:
+            path = Path(dirpath, name)
+            files[path.relative_to(root).as_posix()] = (
+                os.readlink(path).encode() if is_link(path) else path.read_bytes()
+            )
+    return dict(sorted(files.items()))
+
+
+def remove_tree(path: Path) -> None:
+    """``rm -rf``; git makes its object files read-only on Windows, so clear that flag first."""
+
+    def force(function, target, *_exc):  # type: ignore[no-untyped-def]
+        os.chmod(target, stat.S_IWRITE)
+        function(target)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=force)
+    else:
+        shutil.rmtree(path, onerror=force)
 
 
 class Smoke:
@@ -63,16 +93,23 @@ class Smoke:
         self.base, self.python = base, python
         self.home = base / "home"
         self.env = {k: v for k, v in os.environ.items() if not k.startswith(("XDG_", "CONTEXT_BRIDGE", "GIT_"))}
+        local = self.home / "AppData" / "Local"
         self.env.update(
             HOME=str(self.home),
-            XDG_CONFIG_HOME=str(self.home / ".config"),
-            XDG_STATE_HOME=str(self.home / ".local" / "state"),
-            XDG_DATA_HOME=str(self.home / ".local" / "share"),
+            USERPROFILE=str(self.home),
+            APPDATA=str(self.home / "AppData" / "Roaming"),
+            LOCALAPPDATA=str(local),
             GIT_CONFIG_NOSYSTEM="1",
             GIT_CONFIG_GLOBAL=os.devnull,
             **IDENTITY,
         )
-        self.clone = self.home / ".local" / "share" / "context-bridge"
+        # The folders docs/install.md uses; state goes where Context Bridge puts it without XDG variables.
+        if WINDOWS:
+            self.clone = local / "Programs" / "context-bridge"
+            self.state = local / "context-bridge"
+        else:
+            self.clone = self.home / ".local" / "share" / "context-bridge"
+            self.state = self.home / ".local" / "state" / "context-bridge"
         self.link = self.home / ".claude" / "skills" / "context-bridge"
         self.passed = 0
 
@@ -123,17 +160,21 @@ class Smoke:
         if repo == source:  # fetched into the throwaway repository; nothing is ever pushed
             upload_pack = "git -c uploadpack.allowAnySHA1InWant=true upload-pack"  # the commit may have no ref
             refspecs = (f"{old}:refs/tags/{OLD_TAG}", f"{new}:refs/tags/{NEW_TAG}")
-            url = f"file://{Path(source).resolve()}"
+            url = Path(source).resolve().as_uri()
             self.run("git", "-C", str(origin), "fetch", "--quiet", "--upload-pack", upload_pack, url, *refspecs)
         else:
             self.run("git", "-C", repo, "tag", OLD_TAG, old)
             self.run("git", "-C", repo, "tag", NEW_TAG, new)
-        return f"file://{origin}", new
+        return origin.as_uri(), new
 
     def install(self, url: str) -> None:
         self.run("git", "clone", "--quiet", "--branch", OLD_TAG, "--depth", "1", url, str(self.clone))
         self.link.parent.mkdir(parents=True, exist_ok=True)
-        self.link.symlink_to(self.clone / "skills" / "context-bridge")
+        target = self.clone / "skills" / "context-bridge"
+        if WINDOWS:  # a junction needs no admin rights or Developer Mode
+            self.run("cmd", "/c", "mklink", "/J", str(self.link), str(target))
+        else:
+            self.link.symlink_to(target)
         version = self.cb("--version", cwd=self.base).stdout.strip()
         self.check("install: clone a tag and link the skill folder", version.startswith("context-bridge "), version)
 
@@ -159,8 +200,10 @@ class Smoke:
         self.cb("pack", "--root", ".", "--approve", "--handoff-json", json.dumps(HANDOFF), cwd=project)
         store = project / ".context-bridge"
         modes = (stat.S_IMODE(store.stat().st_mode), stat.S_IMODE((store / "latest.json").stat().st_mode))
+        private = WINDOWS or modes == (0o700, 0o600)  # Windows has no permission bits; profile ACLs apply
         ignored = self.run("git", "status", "--porcelain", cwd=project).stdout.strip() == ""
-        self.check("pack: written privately and ignored by git", modes == (0o700, 0o600) and ignored, str(modes))
+        written = (store / "latest.json").is_file()
+        self.check("pack: written privately and ignored by git", private and ignored and written, str(modes))
         out = self.cb("verify", "--root", ".", cwd=project).stdout
         self.check("verify: OK", "Result: OK" in out, out)
         out = self.cb("resume", "--root", ".", cwd=project).stdout
@@ -208,9 +251,12 @@ class Smoke:
             tree(self.home)[f".claude/{n}"] == before[f".claude/{n}"] for n in ("CLAUDE.md", "settings.json")
         )
         self.check("uninstall: setup undo restores both files byte for byte", restored)
-        self.link.unlink()
-        shutil.rmtree(self.clone)
-        shutil.rmtree(self.home / ".local" / "state" / "context-bridge")  # approvals and setup backups
+        if WINDOWS:
+            os.rmdir(self.link)  # removes the junction, not the folder it points to
+        else:
+            self.link.unlink()
+        remove_tree(self.clone)
+        remove_tree(self.state)  # approvals and setup backups
         self.check("uninstall: the home folder is exactly as before", tree(self.home) == before,
                    str(sorted(set(tree(self.home)) ^ set(before))))  # fmt: skip
         self.check("uninstall: no skill left", not (claude / "skills" / "context-bridge").exists())
@@ -220,7 +266,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--source", default=str(REPO), help="repository to install from (default: this one)")
     parser.add_argument("--ref", default="HEAD", help="commit or tag to test (default: HEAD of the source)")
-    parser.add_argument("--python", default="python3", help="interpreter for cb.py (default: python3, as documented)")
+    default_python = "python" if WINDOWS else "python3"  # as docs/install.md documents it
+    parser.add_argument("--python", default=default_python, help=f"interpreter for cb.py (default: {default_python})")
     parser.add_argument("--keep", action="store_true", help="keep the throwaway folder for inspection")
     args = parser.parse_args()
     base = Path(tempfile.mkdtemp(prefix="cb-smoke-")).resolve()

@@ -5,6 +5,7 @@ import os
 import stat
 import unittest
 
+import helpers
 from helpers import TempProject
 
 from context_bridge import safepath
@@ -45,6 +46,7 @@ class ReadFileTests(SafePathTestCase):
         self.assertEqual(content.size, 5)
         self.assertFalse(content.via_symlink)
 
+    @helpers.requires_symlinks
     def test_symlink_inside_root_is_allowed(self) -> None:
         self.project.write("real.md", "inside")
         self.project.symlink("alias.md", "real.md")
@@ -52,14 +54,17 @@ class ReadFileTests(SafePathTestCase):
         self.assertEqual(content.data, b"inside")
         self.assertTrue(content.via_symlink)
 
+    @helpers.requires_symlinks
     def test_symlink_escaping_root_is_refused(self) -> None:
         self.project.symlink("evil.md", self.outside)
         self.assertReason("evil.md", safepath.SYMLINK_OUTSIDE_ROOT)
 
+    @helpers.requires_symlinks
     def test_directory_symlink_escaping_root_is_refused(self) -> None:
         self.project.symlink("linkdir", self.project.base)
         self.assertReason("linkdir/outside.txt", safepath.SYMLINK_OUTSIDE_ROOT)
 
+    @helpers.requires_symlinks
     def test_broken_symlink_and_loop(self) -> None:
         self.project.symlink("broken.md", "nowhere.md")
         self.assertReason("broken.md", safepath.BROKEN_SYMLINK)
@@ -107,12 +112,14 @@ class WriteTests(SafePathTestCase):
             self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
         self.assertEqual(sorted(p.name for p in self.root.iterdir()), ["out.json"])
 
+    @helpers.requires_symlinks
     def test_atomic_write_replaces_symlink_instead_of_following_it(self) -> None:
         link = self.project.symlink("out.json", self.outside)
         atomic_write(link, b"new")
         self.assertEqual(self.outside.read_text(encoding="utf-8"), "outside secret")
         self.assertFalse(link.is_symlink())
 
+    @helpers.requires_symlinks
     def test_private_dir(self) -> None:
         store = self.root / ".context-bridge"
         ensure_private_dir(store)
