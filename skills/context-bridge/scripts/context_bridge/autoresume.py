@@ -4,8 +4,10 @@ Called by Claude Code at session start (``cb.py session-start``, JSON on stdin).
 
 * answers only the session starts configured in ``[hook] sources`` (default: startup, resume),
 * does nothing unless the project has ``.context-bridge/latest.json``,
-* runs the full ``verify`` (structure, integrity, provenance, safety, freshness) first,
-* loads nothing from a pack that fails verification (one generated line says so),
+* runs the full ``verify`` (structure, origin, integrity, provenance, safety, freshness) first,
+* loads nothing from a pack that fails verification (one generated line says so), and nothing
+  from a pack that Context Bridge did not write for this folder on this machine (a pack that
+  came with a clone or a copy gets its own generated line),
 * prints at most about ``[hook] max_tokens`` (default 400): verification, changes since the pack
   and coverage always, then next steps, state, decisions, goals, constraints and open questions
   in turns; outdated items are left out, and so is what Claude Code loads into every session
@@ -52,6 +54,11 @@ LEGEND = (
 FAILED_LINE = (
     "Context Bridge: this project has a context pack, but it failed verification and was not loaded. "
     "Run the context-bridge skill's verify or create a new pack."
+)
+NOT_LOCAL_LINE = (
+    "Context Bridge: this project contains a context pack that Context Bridge did not write here "
+    "(it came with the project, from another folder, or predates version 0.4); it was not loaded. "
+    "Create a new pack with the context-bridge skill to use one."
 )
 
 
@@ -163,6 +170,8 @@ def digest(stdin: bytes, user_config_path: Path | None = None, now: datetime | N
         if cfg.deny().blocks(root) or not os.path.lexists(root / STORE_FILE):
             return ""
         report = verify.verify(root, user_config_path=user_config_path, now=now)
+        if any(f.code == verify.PACK_NOT_LOCAL for f in report.findings):
+            return NOT_LOCAL_LINE + "\n"
         if report.pack is None or report.exit_code == 2:
             return FAILED_LINE + "\n"
         return render_digest(report, cfg.hook_max_tokens)

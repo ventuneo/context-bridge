@@ -67,25 +67,33 @@ There is no package upload and no plugin-marketplace entry.
 3. Run the checks above, then tag, push the tag and create the release.
 4. Run the smoke test against the new tag.
 
-## Release notes for v0.3.1
+## Release notes for v0.4.0
 
-> **Context Bridge 0.3.1: fixes for smart extraction**
+> **Context Bridge 0.4.0: security release**
 >
-> Two cases where smart extraction sorted text wrongly, found when Context Bridge packed its own
-> documentation:
+> Two security problems, reported privately by a community member. Please update.
 >
-> - **Quoted examples are not statements.** A line that quotes "we decided" or "TODO", in quotation
->   marks or as inline code, is no longer a decision or a task. Apostrophes as in "we've" or "don't"
->   never start a quotation, and a decision that only quotes a name is still a decision.
-> - **Questions in tables are labels.** A Markdown table row is no longer an open question only
->   because its cells end with a question mark, as in a comparison table with a "Question" row. Cue
->   phrases in table rows still count.
+> - **A pack that came with a repository loaded as "verified".** A pack committed past the store's
+>   own `.gitignore` (`git add -f`) and cloned elsewhere passed `verify`, so the SessionStart hook
+>   and `resume` showed a repository's own, freely written pack, handoff entries included, as
+>   verified context. `pack` now records the hash of every pack it writes outside the project, next
+>   to the approvals, and `verify` refuses every other pack with the new error `pack_not_local`. The
+>   hook then loads nothing and says so in one line.
+> - **Approving sources needed no prompt.** The skill pre-approves `pack` for Claude Code, and with
+>   it `pack --approve`. Approving is now the separate command `approve`, which the skill does not
+>   pre-approve, so Claude Code asks you before every approval.
 >
-> Nothing else changed: all 48 runs of the Context Quality Score match 0.3.0 exactly (score,
-> critical items and source coverage).
+> **What changes for you**
 >
-> **Known limitation:** short forms such as "we've agreed" are not recognised as decisions yet;
-> "we've decided to …" is.
+> - Packs written before 0.4 are refused until you pack once more in each project.
+> - `pack --approve` and `pack --approve-path` are gone: use `approve --root .` or
+>   `approve --root . --path <source>`. Existing approvals stay valid.
+> - Packs stay with their folder and machine. To continue on another machine, approve and pack
+>   there; `latest.md` can still be pasted into another assistant.
 >
-> **Update:** check out the new tag in your clone (docs/install.md, Update). CI runs on Linux, macOS
-> and Windows with Python 3.11 to 3.15.
+> Also fixed: the skill described the hook's warning line for a failed pack wrongly.
+>
+> **Not tested by hand yet:** the approval prompt in an interactive Claude Code session, and Claude
+> Code itself on Windows. CI runs on Linux, macOS and Windows with Python 3.11 to 3.15.
+>
+> **Update:** check out the new tag in your clone (docs/install.md, Update).

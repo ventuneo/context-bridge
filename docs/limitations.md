@@ -99,7 +99,12 @@ of six text features, calibrated against real token counts (see
 - **git can be skipped.** If a repository's own git configuration could start programs (fsmonitor,
   filters, a pager and similar), Context Bridge does not run git there and packs without repository
   information.
-- **Approvals belong to a folder.** They are stored per real path. After you move a project, you
-  approve its sources again.
+- **Approvals and packs belong to a folder.** Both are recorded per real path, outside the
+  project. After you move or copy a project, or on another machine, you approve its sources and
+  pack again; a pack that travelled with the project is refused (`pack_not_local`). Packs written
+  before version 0.4 have no record and are refused as well until you pack again.
+- **Approving asks every time.** `approve` is not pre-approved for the skill, so Claude Code asks
+  before each approval, and a non-interactive session (`claude -p`) cannot approve; run
+  `approve` yourself there. A permission mode that skips all prompts skips this one too.
 - **The name.** Several unrelated projects are called "context-bridge". A different skill with the
   same name in `~/.claude/skills/` would collide with this one.

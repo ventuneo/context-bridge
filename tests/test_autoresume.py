@@ -292,7 +292,8 @@ class InstalledHookTests(unittest.TestCase):
         self.assertEqual(data["theme"], "dark")
 
         self.assertEqual(self.run_hook("startup").stdout, "")  # no pack yet: silent
-        result = self.project.run_cb("pack", "--approve", "--handoff-json",
+        self.assertEqual(self.project.run_cb("approve").returncode, 0)
+        result = self.project.run_cb("pack", "--handoff-json",
                                      '{"next_steps": [{"text": "Test the export job.", "status": "fact"}]}')  # fmt: skip
         self.assertIn(result.returncode, (0, 1), result.stderr)
         started = time.perf_counter()

@@ -74,7 +74,8 @@ What the hook does:
   session) and `resume` (a continued one).
 - Without `.context-bridge/latest.json` in the session's folder it prints nothing (about 40 ms).
 - It runs the full `verify` first. From a pack that fails verification it loads nothing but one
-  warning line.
+  warning line. The same holds for a pack that Context Bridge did not write for this folder on
+  this machine, for example one that was committed and came with a clone.
 - Otherwise it prints a digest: the verification result, what changed since the pack, the coverage,
   and then, in turns, next steps, state, decisions, goals, constraints and open questions (items
   sorted by their wording are marked `(inferred)`; unclassified notes are left out). Outdated

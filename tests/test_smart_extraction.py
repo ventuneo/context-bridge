@@ -263,7 +263,8 @@ class PackTests(unittest.TestCase):
     def test_sections_preview_and_summary_line(self) -> None:
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            cli.main(["pack", "--root", str(self.project.root), "--approve", "--dry-run", "--sections"])
+            cli.main(["approve", "--root", str(self.project.root)])
+            cli.main(["pack", "--root", str(self.project.root), "--dry-run", "--sections"])
         text = out.getvalue()
         self.assertIn("Sections: what each heading contributed", text)
         self.assertIn("skipped (boilerplate)", text)
@@ -271,7 +272,7 @@ class PackTests(unittest.TestCase):
         self.assertFalse((self.project.root / ".context-bridge").exists())  # a preview writes nothing
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            cli.main(["pack", "--root", str(self.project.root), "--approve"])
+            cli.main(["pack", "--root", str(self.project.root)])
         self.assertIn("Smart extraction: 3 item(s) sorted by their wording and 2 unclassified note(s)", out.getvalue())
 
     def test_secrets_and_instructions_in_notes_are_handled(self) -> None:
